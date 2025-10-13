@@ -1,0 +1,17 @@
+{  
+  "packetRoot": "dir where all apps should be stored before being uploaded",
+  "removeExistingPacketDirOnEachRun": "True",
+  "cloudName": "see settings in cloudinary",
+  "apiKey": "see settings in cloudinary",
+  "apiSecret": "see settings in cloudinary",
+  "tenants": [
+    {
+        "name":  "xyz.onmicrosoft.com",
+        "appid":  "<appid of specific app reg or 14d82eec-204b-4c2f-b7e8-296a70dab67e"
+    },
+    {
+        "name":  "other tenant 1",
+        "appid":  "see above"
+    }
+  ]
+}

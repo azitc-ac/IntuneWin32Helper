@@ -1,0 +1,66 @@
+﻿"ProgramID";"Publisher";"DisplayName";"PackageName";"Version";"WinGetParams";"SingleMSI";"InstallCmd";"UninstallCmd";"logoURL"
+"7zip.7zip";"Igor Pavlov";"7-Zip";"7-Zip";"LatestAvailable";"""--scope=machine""";"";"";"";"https://www.7-zip.org/7ziplogo.png"
+"Adobe.Acrobat.Reader.32-bit";"Adobe Systems Incorporated";"Adobe Acrobat Reader DC";"AdobeAcrobatReaderDC";"LatestAvailable";"""--scope=machine""";"";"";"";"https://get.adobe.com/reader/afb1a38127/images/adobe_logo.png"
+"Governikus.AusweisApp2";"Governikus GmbH & Co. KG";"AusweisApp2";"AusweisApp2";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/rDitIXYxmiqfbULrkXcVLrMK6NHlhN91tOrNw6Ue-rrxH99mesZyqUeMl3Ir_u1Yjv8=w240-h480-rw"
+"Citrix.Workspace";"Citrix Systems; Inc.";"Citrix Workspace";"CitrixWorkspace";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/sasPZu1DPo4_Msn0wakoc6kmifxIz_43PYYSf8y70FNFsbIxa-71R2jmdvdFvnga5Q=s48-rw"
+"Docker.DockerDesktop";"Docker Inc.";"Docker Desktop";"DockerDesktop";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/c1NeMjx3TOWl4r_w5MU2tQ6Tyll8TfwFRf-JRs9jLUumnTuxUNrDr1xYhx-ObeGqnkI=w240-h480-rw"
+"Fortinet.FortiClientVPN";"Fortinet Technologies Inc";"FortiClient VPN";"FortiClientVPN";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/v3zoD9c3ioOWaaENeGaVnJntE0HrLmlEdvHivhx9t0Th3rn8bV02Vc5hN6pkrVYFsbk=w240-h480-rw"
+"Foxit.FoxitReader";"Foxit Software Inc.";"Foxit PDF Reader";"FoxitPDFReader";"LatestAvailable";"""--scope=machine""";"";"";"";"https://images-eds-ssl.xboxlive.com/image?url=4rt9.lXDC4H_93laV1_eHHFT949fUipzkiFOBH3fAiZZUCdYojwUyX2aTonS1aIwMrx6NUIsHfUHSLzjGJFxxtoGVDYZsgZySrsJ7RMjtUdfTvVvAj7idX6TllwQh5D9esdPe2qMJIBWd.2lVq4ZrPujmZRtO27_O5xfoSy_Y9Q-&format=source&h=210"
+"GIMP.GIMP";"The GIMP Team";"GIMP";"GIMP";"LatestAvailable";"""--scope=machine""";"";"";"";"https://is1-ssl.mzstatic.com/image/thumb/Purple115/v4/d1/d2/57/d1d257d2-7474-8b23-9300-3ffbcd0c457a/AppIcon-0-0-1x_U007emarketing-0-0-0-9-0-0-sRGB-0-0-0-GLES2_U002c0-512MB-85-220-0-0.png/230x0w.webp"
+"Google.Chrome";"Google LLC";"Google Chrome";"Chrome";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/QRRGW2tMZ4-FNw0XWk6WWiXHaQCGxuwM-92HrBhlA4WOd_AGmjVmQkiHyAqQjW2yByc=w240-h480-rw"
+"";"Google LLC";"Google Chrome";"GoogleChrome";"140.0.7339.81";"";"true";"";"";"https://play-lh.googleusercontent.com/QRRGW2tMZ4-FNw0XWk6WWiXHaQCGxuwM-92HrBhlA4WOd_AGmjVmQkiHyAqQjW2yByc=w240-h480-rw"
+"ArtifexSoftware.GhostScript";"Artifex Software Inc.";"GPL GhostScript";"GPLGhostScript";"LatestAvailable";"""--scope=machine""";"";"";"";"https://ghostscript.com/images/logos/ghostscript-plus-text.png"
+"Greenshot.Greenshot";"Greenshot";"Greenshot";"Greenshot";"LatestAvailable";"""--scope=machine""";"";"";"";"https://getgreenshot.org/assets/greenshot-logo.png"
+"IrfanSkiljan.IrfanView";"Irfan Skiljan";"IrfanView";"IrfanView";"LatestAvailable";"""--scope=machine""";"";"";"";"https://www.irfanview.com/images/logo.png"
+"DominikReichl.KeePass";"Dominik Reichl";"KeePass";"KeePass";"LatestAvailable";"""--scope=machine""";"";"";"";"https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/KeePass_Logo_(2016).svg/512px-KeePass_Logo_(2016).svg.png?20230502065100"
+"Microsoft.DotNet.Runtime.6";"Microsoft Corporation";"Microsoft .NET Runtime 6.0";"Microsoft.NETRuntime6.0";"LatestAvailable";"";"";"";"";""
+"Microsoft.Edge";"Microsoft Corporation";"Microsoft Edge";"MicrosoftEdge";"LatestAvailable";"""--scope=machine""";"";"";"";""
+"Microsoft.Teams";"Microsoft Corporation";"Microsoft Teams";"MicrosoftTeams";"LatestAvailable";"""--scope=machine""";"";"";"";"https://tse3.mm.bing.net/th/id/OIP.WMQ_IBXfoDlRRPcW3KDx-gAAAA?rs=1&pid=ImgDetMain&o=7&rm=3"
+"Microsoft.VisualStudio.2022.Community.Preview";"Microsoft Corporation";"Microsoft Visual Studio 2022 Community Preview";"MicrosoftVisualStudio2022CommunityPreview";"LatestAvailable";"""--scope=machine""";"";"";"";""
+"Microsoft.VisualStudioCode";"Microsoft Corporation";"Microsoft Visual Studio Code";"MicrosoftVisualStudioCode";"LatestAvailable";"""--scope=machine""";"";"";"";"https://th.bing.com/th?id=OSK.5f25043ca841aa65a571a3ddfd2b24a5&w=46&h=46&c=11&rs=1&qlt=80&o=6&dpr=2&pid=SANGAM"
+"HenriWahl.Nagstamon";"Henri Wahl";"Nagstamon";"Nagstamon";"LatestAvailable";"";"";"";"";""
+"Notepad++.Notepad++";"Notepad++ Team";"Notepad++";"Notepad++";"LatestAvailable";"""--scope=machine""";"";"";"";"https://i.pinimg.com/736x/f9/af/0f/f9af0f3a1e27c6c401747568827f5dfd.jpg"
+"";"Oracle Inc.";"Oracle_Database_Client";"";"19c x64";"";"";"Start-ADTProcess -FilePath ""setup.exe"" -ArgumentList ""-silent -waitforcompletion -responsefile $($adtSession.DirFiles)\client.rsp -nowait"" -WindowStyle 'Hidden'";"Remove-ADTFolder -Path ""C:\apps\client""
+Remove-ADTFolder -Path ""C:\Program Files (x86)\Oracle""
+Remove-ADTFolder -Path ""$envCommonStartMenuPrograms\Oracle - OraClient19Home1_32bit""
+# Registry aufr?umen
+Remove-ADTRegistryKey -Key ""HKEY_LOCAL_MACHINE\SOFTWARE\Oracle"" -Recurse
+Remove-ADTRegistryKey -Key ""HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\ORACLE"" -Recurse
+Remove-ADTRegistryKey -Key ""HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\OracleRemExecServiceV2"" -Recurse
+# Gruppen entfernen
+Get-LocalGroup ora* | Remove-LocalGroup";"https://5.imimg.com/data5/SELLER/Default/2022/7/FT/WW/IM/7756102/oracle-database-enterprise-edition-license-1-processor.png"
+"";"Oracle Inc.";"Oracle_Database_Client";"";"19c";"";"";"Start-ADTProcess -FilePath ""setup.exe"" -ArgumentList ""-silent -waitforcompletion -responsefile $($adtSession.DirFiles)\client.rsp -nowait"" -WindowStyle 'Hidden'";"Remove-ADTFolder -Path ""C:\apps\client""
+Remove-ADTFolder -Path ""C:\Program Files (x86)\Oracle""
+Remove-ADTFolder -Path ""$envCommonStartMenuPrograms\Oracle - OraClient19Home1_32bit""
+# Registry aufr?umen
+Remove-ADTRegistryKey -Key ""HKEY_LOCAL_MACHINE\SOFTWARE\Oracle"" -Recurse
+Remove-ADTRegistryKey -Key ""HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\ORACLE"" -Recurse
+Remove-ADTRegistryKey -Key ""HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\OracleRemExecServiceV2"" -Recurse
+# Gruppen entfernen
+Get-LocalGroup ora* | Remove-LocalGroup";"https://5.imimg.com/data5/SELLER/Default/2022/7/FT/WW/IM/7756102/oracle-database-enterprise-edition-license-1-processor.png"
+"geeksoftwareGmbH.PDF24Creator";"geek software GmbH";"PDF24 Creator";"PDF24Creator";"LatestAvailable";"""--scope=machine""";"";"";"";"https://tools.pdf24.org/static/img/pageIcons/svg/default.svg?v=5cae54fd"
+"TrackerSoftware.PDF-XChangeEditor";"Tracker Software Products (Canada) Ltd.";"PDF-XChange Editor";"PDF-XChangeEditor";"LatestAvailable";"""--scope=machine""";"";"";"";"https://pdf-xchange.de/wp-content/uploads/2025/05/cropped-box-version-6-klein.png"
+"NGWIN.PicPick";"NGWIN";"PicPick";"PicPick";"LatestAvailable";"""--scope=machine""";"";"";"";"https://picpick.app/static/logo-74929f92cead79160a18846cfc0e703b.png"
+"Microsoft.PowerShell";"Microsoft Corporation";"PowerShell";"PowerShell";"LatestAvailable";"""--scope=machine""";"";"";"";"https://store-images.s-microsoft.com/image/apps.2475.13883721464006213.e7408f78-281f-4d17-9448-de93c5af760c.117a2901-b635-43e2-9ff1-38cbb11784ca?h=210"
+"Microsoft.Sysinternals.ProcessExplorer";"Microsoft Corporation";"ProcessExplorer";"ProcessExplorer";"LatestAvailable";"""--scope=machine""";"";"# Add Read permission for Users
+$appname = $adtSession.AppName
+$appfolder = ""C:\Program Files\WinGet\Packages\Microsoft.Sysinternals.ProcessExplorer_Microsoft.Winget.Source_8wekyb3d8bbwe\procexp.exe""
+Start-ADTProcess -FilePath ""icacls.exe"" -ArgumentList ""`""$appfolder`"" /grant *S-1-5-32-545:R""  -WindowStyle 'Hidden'
+New-ADTShortcut -Path ""$envCommonStartMenuPrograms\$appname.lnk"" -TargetPath ""$appfolder\rdcman.exe"" -IconLocation ""$appfolder\rdcman.exe"" -Description $appname -WorkingDirectory $appfolder";"$appname = $adtSession.AppName
+Remove-ADTShortcut -Path ""$envCommonStartMenuPrograms\$appname.lnk""";"https://pics.computerbase.de/1/9/6/6/0/logo-256.png"
+"Microsoft.Sysinternals.RDCMan";"Microsoft Corporation";"Remote Desktop Connection Manager";"RemoteDesktopConnectionManager";"LatestAvailable";"""--scope=machine""";"";"# Add Read permission for Users
+$appname = $adtSession.AppName
+$appfolder = ""C:\Program Files\WinGet\Packages\Microsoft.Sysinternals.RDCMan_Microsoft.Winget.Source_8wekyb3d8bbwe\rdcman.exe""
+Start-ADTProcess -FilePath ""icacls.exe"" -ArgumentList ""`""$appfolder`"" /grant *S-1-5-32-545:R""  -WindowStyle 'Hidden'
+New-ADTShortcut -Path ""$envCommonStartMenuPrograms\$appname.lnk"" -TargetPath ""$appfolder\rdcman.exe"" -IconLocation ""$appfolder\rdcman.exe"" -Description $appname -WorkingDirectory $appfolder";"$appname = $adtSession.AppName
+Remove-ADTShortcut -Path ""$envCommonStartMenuPrograms\$appname.lnk""";"https://www.anyviewer.com/screenshot/others/illustration/remote-desktop-connection-manager.png"
+"";"SAP SE";"SAP GUI for Windows 8.00 Patch 11";"";"8.00 Compilation 1 (Patch 11)";"";"";"";"";""
+"";"VMware Inc.";"SD-WAN Client";"";"1.39.16.241";"";"";"";"";"https://play-lh.googleusercontent.com/PGnl2HezJ2xK3EnCj6GS30M9OhUFqyIet_eVbb-0hZ4i5k-3D0m8x47JjrQcTvdTn68=w240-h480-rw"
+"";"VMware Inc.";"SD-WAN Client";"";"1.40.6.243";"";"";"";"";"https://play-lh.googleusercontent.com/PGnl2HezJ2xK3EnCj6GS30M9OhUFqyIet_eVbb-0hZ4i5k-3D0m8x47JjrQcTvdTn68=w240-h480-rw"
+"TeamViewer.TeamViewer";"TeamViewer";"TeamViewer";"TeamViewer";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/kiuamHjSKvVwS2fZ9c3dgPBPLDNQhExfw_8_vWhTdFMIQp1Lnf5gl5ZPbO2R55BzBk4=w240-h480-rw"
+"VideoLAN.VLC";"VideoLAN";"VideoLAN";"VideoLAN";"LatestAvailable";"""--scope=machine""";"";"";"";"https://th.bing.com/th/id/OIP.CvzDOFasAyUcySYnjP3YcQHaHa?rs=1&pid=ImgDetMain"
+"VMware.HorizonClient";"VMware Inc.";"VMware Horizon Client";"VMwareHorizonClient";"LatestAvailable";"""--scope=machine""";"";"";"";"https://play-lh.googleusercontent.com/jrGazAh50T5ohYQQqnz5SStHJ4BrY413sc5TY0yAqyDhjnJwN9n7gXAni12W6iF2Eac"
+"RealVNC.VNCViewer";"RealVNC";"VNCViewer";"VNCViewer";"LatestAvailable";"""--scope=machine""";"";"";"";"https://th.bing.com/th/id/R.6f10d2232a20214f6001bc5c10bfb746?rik=ds9jc%2fgKwkygKQ&riu=http%3a%2f%2fstore-images.s-microsoft.com%2fimage%2fapps.35046.13929299226420516.77b2749b-1006-4079-afad-f9f8d6a93229.8d7094f2-e06b-402f-894b-ba6f859f8089&ehk=B6QUVa30jRyzo7MJTbd%2feBiEiMrNFoQpNL9BJCphFcs%3d&risl=&pid=ImgRaw&r=0"
+"";"Romanitho";"Winget-AutoUpdate";"Winget-AutoUpdate";"2.8.0.1980";"";"";"Start-ADTMsiProcess -Action 'Install' -FilePath 'WAU.msi' -ArgumentList '/qn' -AdditionalArgumentList 'USEWHITELIST=1 DISABLEWAUAUTOUPDATE=1 STARTMENUSHORTCUT=1 ListPath=GPO'";"Start-ADTMsiProcess -Action 'Uninstall' -FilePath 'WAU.msi'";"https://tse3.mm.bing.net/th/id/OIP.iHmC8Qr3Zp3C7A3yVsTQ8QAAAA?rs=1&pid=ImgDetMain&o=7&rm=3"
+"WinSCP.WinSCP";"Martin Prikryl";"WinSCP";"WinSCP";"LatestAvailable";"""--scope=machine""";"";"";"";"https://winscp-static-746341.c.cdn77.org/assets/images/logos/logo.png?v=7038"
+"Zoom.Zoom";"Zoom";"Zoom";"Zoom";"LatestAvailable";"""--scope=machine""";"";"";"";"https://logowik.com/content/uploads/images/zoom-app2328.logowik.com.webp"
