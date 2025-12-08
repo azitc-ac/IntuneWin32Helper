@@ -46,7 +46,7 @@
         )
 
         if (-not (Test-Path -LiteralPath $PacketRoot)) {
-            throw "PacketRoot existiert nicht: $PacketRoot"
+            throw "PacketRoot does not exist: $PacketRoot"
         }
 
         # Unterverzeichnisse holen (optional rekursiv)
@@ -96,7 +96,7 @@
         $appsToDeploy = $appsToDeploy | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] }
     }
 
-    # Abbruchbedingung: wenn Nutzer "Abbrechen" klickt oder Fenster schließt → keine gültigen Items
+    # Abbruchbedingung: wenn Nutzer "Cancel" klickt oder Fenster schließt → keine gültigen Items
     if ($appsToDeploy -eq $null -or ($appsToDeploy | Measure-Object).Count -eq 0) {
         break
     }
@@ -134,7 +134,7 @@ function createApps{
             $apps = $apps | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] }
         }
 
-        # Abbruchbedingung: wenn Nutzer "Abbrechen" klickt oder Fenster schließt → keine gültigen Items
+        # Abbruchbedingung: wenn Nutzer "Cancel" klickt oder Fenster schließt → keine gültigen Items
         if ($apps -eq $null -or ($apps | Measure-Object).Count -eq 0) {
             break
         }
@@ -156,15 +156,15 @@ function createApps{
         $UninstallCmdInternal = $app.UninstallCmd
         $winGetParams = $app.WinGetParams -replace "`"",""
 
-        Write-Host "Erstelle Application: $AppNameCombined" -ForegroundColor Cyan
+        Write-Host "Creating PSADT application: $AppNameCombined" -ForegroundColor Cyan
         if((Test-Path $SourcePath) -and ($config.removeExistingPacketDirOnEachRun -eq $true)){del $SourcePath -Recurse -Force}
         New-ADTTemplate -Destination $packetRoot -Name $AppNameCombined
 
-        Write-Host "Warte 5 Sekunden..."
+        Write-Host "Wait 5 seconds..."
         Start-Sleep -Seconds 5
     
         # erstellen von \in und \out, move eine ebene tiefer nach \in, 
-        Write-Host "Verschiebe Daten nach .\in"
+        Write-Host "Moving data to .\in"
         $psadtdirs = Get-ChildItem $SourcePath
         md $SourcePath\in
         md $SourcePath\out
@@ -180,7 +180,7 @@ function createApps{
 
         # für normale Pakete
         # kopieren von detect.ps1 und anpassen
-        Write-Host "Kopieren und anpassen: detection_template.ps1"
+        Write-Host "Copying and customizing: detection_template.ps1"
         if($AppVersion -ne "LatestAvailable"){
             $DetectionScript = get-content "$rootDir\Templates\detection_template.ps1" 
             $DetectionScript -replace "#DN#", $AppName -replace "#VER#",$AppVersion | Out-File "$SourcePath\detection.ps1" -Encoding utf8 -Force
@@ -188,18 +188,18 @@ function createApps{
         else{
             # für WinGet Pakete
             # kopieren von detect.ps1 und anpassen
-            Write-Host "Kopieren und anpassen: detection_template-WinGetApp.ps1"
+            Write-Host "Copying and customizing: detection_template-WinGetApp.ps1"
             $DetectionScript = get-content "$rootDir\Templates\detection_template-WinGetApp.ps1"
             $DetectionScript -replace "WINGETPROGRAMID", $ProgramId | Out-File "$SourcePath\detection.ps1" -Encoding utf8 -Force
         }
         # kopieren von serviceui.exe ins neu erstellte dir
-        Write-Host "Kopieren: ServiceUI.exe"
+        Write-Host "Copying: ServiceUI.exe"
         cp $rootDir\ServiceUI.exe $SourcePath\in
 
         # einpflegen von publisher, appname, version ins invoke-AppDeployToolkit.ps1
         # Update der Invoke-AppDeployToolkit.ps1, außer im Fall des Zero-Config Deployment mit 1 single MSI, dann darf hier nichts angepasst werden
         if(-not $app.SingleMSI){
-            Write-Host "Kopieren und anpassen: Invoke-AppDeployToolkit.ps1"    
+            Write-Host "Copying and customizing: Invoke-AppDeployToolkit.ps1"    
             $creationdate = get-date -Format "yyyy-MM-dd"
             $psadtscript = get-content "$SourcePath\in\Invoke-AppDeployToolkit.ps1"
             $psadtscript -replace "AppVendor = ''","AppVendor = '$AppPublisher'" -replace "AppName = ''", "AppName = '$AppName'" -replace "AppVersion = ''", "AppVersion = '$AppVersion'" `
@@ -233,25 +233,25 @@ function createApps{
         #schaue nach, ob es schon ein logo gibt und falls ja, nimm es, kein DL
         $existingLogo = "$rootDir\Logos\$AppName.png"
         if(test-path $existingLogo){
-            write-host "Verwende existierendes Logo [$existingLogo]"
+            write-host "Using existing logo [$existingLogo]"
             cp $existingLogo "$appfolder\"
         }
         else{
             if(-not $logoURL){
                 #copy default logo
-                Write-Host "Keine Logo URL angegeben. Nehme Default logo."
+                Write-Host "No logo URL specified. Taking default logo."
                 cp "$rootDir\Logos\defaultlogo.png" $appfolder
             }
             else{
                 #try DL
                 if($logoURL -like "*.png"){$LogoFileName = "$AppName.png"}else{$LogoFileName = "$AppName.webp"}
-                Write-Host "Versuche Logo Download..."
+                Write-Host "Trying logo download..."
                 Invoke-WebRequest -Uri $logoURL -D -OutFile $appfolder\$LogoFileName
                 if(Test-Path $appfolder\$LogoFileName){
-                    Write-Host "Logo Download erfolgreich."
+                    Write-Host "Logo download successful."
                     if($LogoFileName -eq "$AppName.webp"){
                         # convert webp to png
-                        Write-Host "Konvertiere Logo von .webp zu .png"
+                        Write-Host "Converting logo from .webp to .png"
                         Convert-WebPToPngCloudinary "$appfolder\$LogoFileName" -CloudName $cloudName -ApiKey $ApiKey -ApiSecret $ApiSecret
                         $LogoFileName = "$AppName.png"
                     }
@@ -259,7 +259,7 @@ function createApps{
                 }
                 else{
                     #copy default logo
-                    Write-Host "Fehler beim Logo Download. Nehme Default logo."
+                    Write-Host "Error during logo download. Taking default logo."
                     cp "$rootDir\Logos\defaultlogo.png" $appfolder
                 }
             }
@@ -273,10 +273,10 @@ function createApps{
   
         # manuell: files reinpacken, install u uninstall routine einpflegen
         if($AppVersion -ne "LatestAvailable"){
-            Write-Host "ToDo: Files reinkopieren, dann ENTER" -ForegroundColor Cyan
+            Write-Host "ToDo: now add/copy all required files for setup, then press ENTER" -ForegroundColor Cyan
             explorer "$SourcePath\in\Files"
             pause
-            Write-Host "ToDo: Install & Uninstall Section mit Leben füllen, dann ENTER, dann wird nach Intune deployed" -ForegroundColor Cyan
+            Write-Host "ToDo: fill Install & Uninstall sections with life, then press ENTER. Deployment to Intune will begin if previously selected." -ForegroundColor Cyan
             powershell_ise $SourcePath\in\Invoke-AppDeployToolkit.ps1
             pause
         }
@@ -304,7 +304,7 @@ function Show-StartDialog {
     param(
         [Parameter(Mandatory=$false)]
         [System.Windows.Window]$Owner,
-        [string]$Title = "IntuneWin32Helper – Start",
+        [string]$Title = "IntuneWin32Helper – https://blog.zarenko.net/",
         [int]$TileWidth = 220 # Breite je Kachel zur sauberen Textumbruch-Steuerung
     )
 
@@ -472,19 +472,19 @@ function Show-StartDialog {
 
     # Kacheln erstellen
     $tileCreate = New-OptionTile -Caption 'Create apps' `
-        -Description 'Creates app packages.' `
+        -Description 'Create app packages in the file system.' `
         -IconElement $iconCreate `
         -ReturnValue 'CreateNew' `
         -Width $TileWidth
 
     $tileCreateDeploy = New-OptionTile -Caption 'Create and deploy apps' `
-        -Description 'Creates app packages and deploys them to Intune.' `
+        -Description 'Create app packages in the file system and deploy them to Intune.' `
         -IconElement $iconCreateDeployWrap `
         -ReturnValue 'CreateNewAndDeploy' `
         -Width $TileWidth
 
     $tileDeploy = New-OptionTile -Caption 'Deploy existing apps' `
-        -Description 'Deploys existing app packages to Intune.' `
+        -Description 'Deploy existing app packages to Intune.' `
         -IconElement $iconDeploy `
         -ReturnValue 'DeployExisting' `
         -Width $TileWidth
@@ -529,7 +529,7 @@ function Show-StartDialog {
         }
     })
 
-    # --- Footer mit Zahnrad links & Abbrechen rechts ---
+    # --- Footer mit Zahnrad links & Cancel rechts ---
     $footer = New-Object Windows.Controls.Grid
     $footer.Margin = "0,14,0,0"
     $colLeft = New-Object Windows.Controls.ColumnDefinition; $colLeft.Width = "Auto"
@@ -541,7 +541,7 @@ function Show-StartDialog {
 
     # Einstellungen links
     $btnSettings = New-Object Windows.Controls.Button
-    $btnSettings.ToolTip = "Einstellungen"
+    $btnSettings.ToolTip = "Settings"
     $btnSettings.Padding = "10,6"
     $btnSettings.MinWidth = 40
     $btnSettings.HorizontalAlignment = "Left"
@@ -555,12 +555,12 @@ function Show-StartDialog {
     [Windows.Controls.Grid]::SetColumn($btnSettings, 0)
     $null = $footer.Children.Add($btnSettings)
 
-    # Abbrechen rechts
+    # Cancel rechts
     $spClose = New-Object Windows.Controls.StackPanel
     $spClose.Orientation = 'Horizontal'
     $spClose.HorizontalAlignment = 'Right'
     $btnClose = New-Object Windows.Controls.Button
-    $btnClose.Content = 'Abbrechen'
+    $btnClose.Content = 'Cancel'
     $btnClose.Padding = '14,6'
     $btnClose.Margin = '0,0,0,0'
     $btnClose.Add_Click({
@@ -580,7 +580,7 @@ function Show-StartDialog {
                 (Join-Path $rootDir "Config\config.json")
             )
         } catch {
-            [System.Windows.MessageBox]::Show(("Fehler beim Öffnen der Einstellungen: {0}" -f $_.Exception.Message), "Einstellungen", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Error while opening the settings: {0}" -f $_.Exception.Message), "Settings", "OK", "Error") | Out-Null
         }
     })
 
@@ -690,8 +690,8 @@ function Open-EditDialog {
         try {
             Add-Type -AssemblyName PresentationFramework
             $ofd = New-Object Microsoft.Win32.OpenFileDialog
-            $ofd.Title  = "MSI auswählen"
-            $ofd.Filter = "MSI-Dateien (*.msi)|*.msi|Alle Dateien (*.*)|*.*"
+            $ofd.Title  = "Select MSI"
+            $ofd.Filter = "MSI files (*.msi)|*.msi|All files (*.*)|*.*"
             $ofd.Multiselect = $false
             $ok = $ofd.ShowDialog()
             if ($ok -eq $true -and $ofd.FileName) {
@@ -717,7 +717,7 @@ function Open-EditDialog {
         } catch { }
     })
 
-    # OK/Abbrechen
+    # OK/Cancel
     $okButton = New-Object Windows.Controls.Button
     $okButton.Content = "OK"
     $okButton.Width = 100
@@ -725,7 +725,7 @@ function Open-EditDialog {
     $okButton.Add_Click({ $window.DialogResult = $true })
 
     $cancelButton = New-Object Windows.Controls.Button
-    $cancelButton.Content = "Abbrechen"
+    $cancelButton.Content = "Cancel"
     $cancelButton.Width = 100
     $cancelButton.Margin = "5"
     $cancelButton.Add_Click({ $window.DialogResult = $false })
@@ -734,7 +734,7 @@ function Open-EditDialog {
     $buttonPanel.Orientation = 'Horizontal'
     $buttonPanel.HorizontalAlignment = 'Right'
 
-    # Reihenfolge: WinGet | MSI | OK | Abbrechen  (WinGet/MSI links neben OK)
+    # Reihenfolge: WinGet | MSI | OK | Cancel  (WinGet/MSI links neben OK)
     $buttonPanel.Children.Add($wingetButton)
     $buttonPanel.Children.Add($msiButton)
     $buttonPanel.Children.Add($okButton)
@@ -820,7 +820,7 @@ function Show-WinGetBrowserDialog {
     $ok.Margin = "5"
 
     $cancel = New-Object Windows.Controls.Button
-    $cancel.Content = "Abbrechen"
+    $cancel.Content = "Cancel"
     $cancel.Width = 100
     $cancel.Margin = "5"
 
@@ -925,7 +925,7 @@ function Set-IfPresent {
 function Open-SelectDialogWithEdit {
     param (
         [string]$CsvPath,
-        [string]$title = "Auswahl",
+        [string]$title = "Selection",
         [ValidateSet("small", "medium", "large")]
         [string]$size = "medium"
     )
@@ -1014,28 +1014,28 @@ function Open-SelectDialogWithEdit {
     $okButton.IsDefault = $true
 
     $cancelButton = New-Object Windows.Controls.Button
-    $cancelButton.Content = "Abbrechen"
+    $cancelButton.Content = "Cancel"
     $cancelButton.Width   = 100
     $cancelButton.Margin  = "5"
     $cancelButton.IsCancel = $true
 
     $editButton = New-Object Windows.Controls.Button
-    $editButton.Content = "Bearbeiten"
+    $editButton.Content = "Edit"
     $editButton.Width   = 100
     $editButton.Margin  = "5"
 
     $newButton = New-Object Windows.Controls.Button
-    $newButton.Content = "Neu"
+    $newButton.Content = "New"
     $newButton.Width   = 100
     $newButton.Margin  = "5"
 
     $duplicateButton = New-Object Windows.Controls.Button
-    $duplicateButton.Content = "Duplizieren"
+    $duplicateButton.Content = "Duplicate"
     $duplicateButton.Width   = 100
     $duplicateButton.Margin  = "5"
 
     $deleteButton = New-Object Windows.Controls.Button
-    $deleteButton.Content = "Löschen"
+    $deleteButton.Content = "Delete"
     $deleteButton.Width   = 100
     $deleteButton.Margin  = "5"
 
@@ -1070,7 +1070,7 @@ function Open-SelectDialogWithEdit {
             $hash = @{}
             foreach ($prop in $columnOrder) { $hash[$prop] = $selected.$prop }
 
-            $edited = Open-EditDialog -item $hash -title "Eintrag bearbeiten" -PropertyOrder $columnOrder
+            $edited = Open-EditDialog -item $hash -title "Edit entry" -PropertyOrder $columnOrder
             $edited = $edited | Where-Object { $_ -isnot [int] }
 
             if ($edited) {
@@ -1087,7 +1087,7 @@ function Open-SelectDialogWithEdit {
         $template = [ordered]@{}
         foreach ($property in $columnOrder) { $template[$property] = "" }
 
-        $newItem = Open-EditDialog -item $template -title "Neuen Eintrag hinzufügen" -PropertyOrder $columnOrder
+        $newItem = Open-EditDialog -item $template -title "Add new entry" -PropertyOrder $columnOrder
         $newItem = $newItem | Where-Object { $_ -isnot [int] }
 
         if ($newItem) {
@@ -1109,7 +1109,7 @@ function Open-SelectDialogWithEdit {
             $hash = @{}
             foreach ($prop in $columnOrder) { $hash[$prop] = $selected.$prop }
 
-            $duplicated = Open-EditDialog -item $hash -title "Duplizierten Eintrag bearbeiten" -PropertyOrder $columnOrder
+            $duplicated = Open-EditDialog -item $hash -title "Edit duplicate entry" -PropertyOrder $columnOrder
             $duplicated = $duplicated | Where-Object { $_ -isnot [int] }
 
             if ($duplicated) {
@@ -1330,7 +1330,7 @@ function Edit-SettingsDialog {
                 $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
                 $obj = $raw | ConvertFrom-Json -ErrorAction Stop
             } catch {
-                [System.Windows.MessageBox]::Show(("JSON konnte nicht geladen werden: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+                [System.Windows.MessageBox]::Show(("JSON could not be loaded: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
             }
         }
         if ($obj -eq $null) {
@@ -1356,7 +1356,7 @@ function Edit-SettingsDialog {
             Set-Content -LiteralPath $Path -Value $json -Encoding UTF8
             return $true
         } catch {
-            [System.Windows.MessageBox]::Show(("JSON konnte nicht gespeichert werden: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("JSON could not be saved: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
             return $false
         }
     }
@@ -1374,7 +1374,7 @@ function Edit-SettingsDialog {
 
     # Fenster
     $dlg = New-Object Windows.Window
-    $dlg.Title = "Einstellungen bearbeiten"
+    $dlg.Title = "Edit settings"
     $dlg.Width = 900
     $dlg.Height = 640
     $dlg.WindowStartupLocation = "CenterOwner"
@@ -1400,7 +1400,7 @@ function Edit-SettingsDialog {
     [Windows.Controls.Grid]::SetColumn($tbPath, 0)
 
     $btnBrowse = New-Object Windows.Controls.Button
-    $btnBrowse.Content = "Durchsuchen…"
+    $btnBrowse.Content = "Browse…"
     [Windows.Controls.Grid]::SetColumn($btnBrowse, 1)
 
     $null = $pathGrid.Children.Add($tbPath); $null = $pathGrid.Children.Add($btnBrowse)
@@ -1412,7 +1412,7 @@ function Edit-SettingsDialog {
 
     # --- Tab: Allgemein ---
     $tabGeneral = New-Object Windows.Controls.TabItem
-    $tabGeneral.Header = "Allgemein"
+    $tabGeneral.Header = "Common"
     $generalGrid = New-Object Windows.Controls.Grid
     $generalGrid.Margin = "10"
 
@@ -1499,7 +1499,7 @@ function Edit-SettingsDialog {
             $url = $sender.NavigateUri.AbsoluteUri
             Start-Process $url
         } catch {
-            [System.Windows.MessageBox]::Show(("Konnte den Link nicht öffnen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Konnte den Link nicht öffnen: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
     $null = $linkTextBlock.Inlines.Add($hyperlink)
@@ -1560,9 +1560,9 @@ function Edit-SettingsDialog {
     $spTenantBtns = New-Object Windows.Controls.StackPanel
     $spTenantBtns.Orientation = "Horizontal"
     $spTenantBtns.HorizontalAlignment = "Right"
-    $btnTenantAdd    = New-Object Windows.Controls.Button; $btnTenantAdd.Content    = "Hinzufügen"; $btnTenantAdd.Margin    = "0,10,8,0"; $btnTenantAdd.Padding    = "14,6"
-    $btnTenantEdit   = New-Object Windows.Controls.Button; $btnTenantEdit.Content   = "Bearbeiten"; $btnTenantEdit.Margin   = "0,10,8,0"; $btnTenantEdit.Padding   = "14,6"
-    $btnTenantDelete = New-Object Windows.Controls.Button; $btnTenantDelete.Content = "Löschen";    $btnTenantDelete.Margin = "0,10,0,0";  $btnTenantDelete.Padding = "14,6"
+    $btnTenantAdd    = New-Object Windows.Controls.Button; $btnTenantAdd.Content    = "Add"; $btnTenantAdd.Margin    = "0,10,8,0"; $btnTenantAdd.Padding    = "14,6"
+    $btnTenantEdit   = New-Object Windows.Controls.Button; $btnTenantEdit.Content   = "Edit"; $btnTenantEdit.Margin   = "0,10,8,0"; $btnTenantEdit.Padding   = "14,6"
+    $btnTenantDelete = New-Object Windows.Controls.Button; $btnTenantDelete.Content = "Delete";    $btnTenantDelete.Margin = "0,10,0,0";  $btnTenantDelete.Padding = "14,6"
     $null = $spTenantBtns.Children.Add($btnTenantAdd)
     $null = $spTenantBtns.Children.Add($btnTenantEdit)
     $null = $spTenantBtns.Children.Add($btnTenantDelete)
@@ -1575,9 +1575,9 @@ function Edit-SettingsDialog {
     $spBtns = New-Object Windows.Controls.StackPanel
     $spBtns.Orientation = "Horizontal"
     $spBtns.HorizontalAlignment = "Right"
-    $btnReload = New-Object Windows.Controls.Button; $btnReload.Content = "Neu laden"; $btnReload.Margin = "0,10,8,0"; $btnReload.Padding = "14,6"
-    $btnSave   = New-Object Windows.Controls.Button; $btnSave.Content   = "Speichern"; $btnSave.Margin  = "0,10,8,0"; $btnSave.Padding  = "14,6"
-    $btnClose  = New-Object Windows.Controls.Button; $btnClose.Content  = "Schließen"; $btnClose.Margin = "0,10,0,0";  $btnClose.Padding = "14,6"
+    $btnReload = New-Object Windows.Controls.Button; $btnReload.Content = "Reload"; $btnReload.Margin = "0,10,8,0"; $btnReload.Padding = "14,6"
+    $btnSave   = New-Object Windows.Controls.Button; $btnSave.Content   = "Save"; $btnSave.Margin  = "0,10,8,0"; $btnSave.Padding  = "14,6"
+    $btnClose  = New-Object Windows.Controls.Button; $btnClose.Content  = "Close"; $btnClose.Margin = "0,10,0,0";  $btnClose.Padding = "14,6"
     $null = $spBtns.Children.Add($btnReload); $null = $spBtns.Children.Add($btnSave); $null = $spBtns.Children.Add($btnClose)
     [Windows.Controls.Grid]::SetRow($spBtns, 2); $null = $root.Children.Add($spBtns)
 
@@ -1589,7 +1589,7 @@ function Edit-SettingsDialog {
     $btnBrowse.Add_Click({
         try {
             $ofd = New-Object System.Windows.Forms.OpenFileDialog
-            $ofd.Filter = "JSON-Datei (*.json)|*.json|Alle Dateien (*.*)|*.*"
+            $ofd.Filter = "JSON file (*.json)|*.json|All files (*.*)|*.*"
             $ofd.Multiselect = $false
             $ofd.CheckFileExists = $false
             $ofd.FileName = "config.json"
@@ -1598,7 +1598,7 @@ function Edit-SettingsDialog {
                 if ($ofd.FileName) { $tbPath.Text = $ofd.FileName }
             }
         } catch {
-            [System.Windows.MessageBox]::Show(("Dateiauswahl fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("File selection falied: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1606,14 +1606,14 @@ function Edit-SettingsDialog {
     $btnPacketBrowse.Add_Click({
         try {
             $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
-            $fbd.Description = "packetRoot auswählen"
+            $fbd.Description = "Select PackageRoot"
             $fbd.ShowNewFolderButton = $true
             $res = $fbd.ShowDialog()
             if ($res -eq [System.Windows.Forms.DialogResult]::OK) {
                 if ($fbd.SelectedPath) { $tbPacketRoot.Text = $fbd.SelectedPath }
             }
         } catch {
-            [System.Windows.MessageBox]::Show(("Ordnerauswahl fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Folder selection failed: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1628,7 +1628,7 @@ function Edit-SettingsDialog {
                 $dgTenants.ItemsSource = $list
             }
         } catch {
-            [System.Windows.MessageBox]::Show(("Tenant hinzufügen fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Tenant edit failed: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1637,7 +1637,7 @@ function Edit-SettingsDialog {
         try {
             $sel = $dgTenants.SelectedItem
             if ($sel -eq $null) {
-                [System.Windows.MessageBox]::Show("Bitte einen Tenant auswählen.", "Hinweis", "OK", "Information") | Out-Null
+                [System.Windows.MessageBox]::Show("Please select a tenant.", "Hint", "OK", "Information") | Out-Null
                 return
             }
             $initialSecret = ""
@@ -1650,7 +1650,7 @@ function Edit-SettingsDialog {
                 $dgTenants.Items.Refresh()
             }
         } catch {
-            [System.Windows.MessageBox]::Show(("Tenant bearbeiten fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Tenant edit failed: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1659,10 +1659,10 @@ function Edit-SettingsDialog {
         try {
             $selected = $dgTenants.SelectedItems
             if ($selected -eq $null -or $selected.Count -eq 0) {
-                [System.Windows.MessageBox]::Show("Keine Tenants ausgewählt zum Löschen.", "Hinweis", "OK", "Information") | Out-Null
+                [System.Windows.MessageBox]::Show("No tenants selected for deletion.", "Hint", "OK", "Information") | Out-Null
                 return
             }
-            $confirm = [System.Windows.MessageBox]::Show("Ausgewählte Tenants löschen?", "Bestätigen", "YesNo", "Warning")
+            $confirm = [System.Windows.MessageBox]::Show("Delete selected Tenants ?", "Confirm", "YesNo", "Warning")
             if ($confirm -eq "Yes") {
                 $remaining = @()
                 $current = @($dgTenants.ItemsSource)
@@ -1675,7 +1675,7 @@ function Edit-SettingsDialog {
                 $dgTenants.ItemsSource = $remaining
             }
         } catch {
-            [System.Windows.MessageBox]::Show(("Tenant löschen fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Tenant edit failed: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1705,7 +1705,7 @@ function Edit-SettingsDialog {
             $dgTenants.ItemsSource = $null
             $dgTenants.ItemsSource = $tenantItems
         } catch {
-            [System.Windows.MessageBox]::Show(("Neu laden fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Reloading failed: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1714,7 +1714,7 @@ function Edit-SettingsDialog {
         try {
             $targetPath = $tbPath.Text
             if (-not $targetPath) {
-                [System.Windows.MessageBox]::Show("Kein Zielpfad angegeben.", "Hinweis", "OK", "Warning") | Out-Null
+                [System.Windows.MessageBox]::Show("No path given.", "Hint", "OK", "Warning") | Out-Null
                 return
             }
 
@@ -1726,11 +1726,11 @@ function Edit-SettingsDialog {
                 $s = ""
                 if ($row.PSObject.Properties.Name -contains "clientSecret") { $s = $row.clientSecret }
                 if (-not $n -or $n.Trim().Length -eq 0) {
-                    [System.Windows.MessageBox]::Show("Tenant-Name darf nicht leer sein.", "Validierung", "OK", "Warning") | Out-Null
+                    [System.Windows.MessageBox]::Show("Tenant name must not be empty.", "Validation", "OK", "Warning") | Out-Null
                     return
                 }
                 if (-not (Test-GuidString -Text $a)) {
-                    [System.Windows.MessageBox]::Show(("Ungültige AppId (GUID) für Tenant '{0}'." -f $n), "Validierung", "OK", "Warning") | Out-Null
+                    [System.Windows.MessageBox]::Show(("Invalid AppId (GUID) for tenant '{0}'." -f $n), "Validation", "OK", "Warning") | Out-Null
                     return
                 }
                 $tenantArray += @{ name = $n; appid = $a; clientSecret = $s }
@@ -1750,9 +1750,9 @@ function Edit-SettingsDialog {
             }
 
             $ok = Save-ConfigObject -Data $data -Path $targetPath
-            if ($ok) { [System.Windows.MessageBox]::Show(("Gespeichert: {0}" -f $targetPath), "Erfolg", "OK", "Information") | Out-Null }
+            if ($ok) { [System.Windows.MessageBox]::Show(("Saved: {0}" -f $targetPath), "Success", "OK", "Information") | Out-Null }
         } catch {
-            [System.Windows.MessageBox]::Show(("Speichern fehlgeschlagen: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Save failed: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -1792,7 +1792,7 @@ function Edit-TenantDialog {
     }
 
     $dlg = New-Object Windows.Window
-    $dlg.Title = "Tenant bearbeiten"
+    $dlg.Title = "Tenant Edit"
     $dlg.Width = 560
     $dlg.Height = 280
     $dlg.WindowStartupLocation = "CenterOwner"
@@ -1905,7 +1905,7 @@ function Edit-TenantDialog {
     $btnOK.Padding = "14,6"
 
     $btnCancel = New-Object Windows.Controls.Button
-    $btnCancel.Content = "Abbrechen"
+    $btnCancel.Content = "Cancel"
     $btnCancel.Margin = "0,10,0,0"
     $btnCancel.Padding = "14,6"
 
@@ -1939,11 +1939,11 @@ function Edit-TenantDialog {
             if ($tbSecretPlain.Visibility -eq 'Visible') { $s = $tbSecretPlain.Text }
 
             if (-not $n -or $n.Trim().Length -eq 0) {
-                [System.Windows.MessageBox]::Show("Name darf nicht leer sein.", "Validierung", "OK", "Warning") | Out-Null
+                [System.Windows.MessageBox]::Show("Name must not be empty.", "Validation", "OK", "Warning") | Out-Null
                 return
             }
             if (-not (Test-GuidString -Text $a)) {
-                [System.Windows.MessageBox]::Show("AppId ist keine gültige GUID.", "Validierung", "OK", "Warning") | Out-Null
+                [System.Windows.MessageBox]::Show("AppId is not a valid GUID.", "Validation", "OK", "Warning") | Out-Null
                 return
             }
             # clientSecret darf leer sein; keine weitere Validierung erforderlich
@@ -1955,7 +1955,7 @@ function Edit-TenantDialog {
             $dlg.DialogResult = $true
             $dlg.Close()
         } catch {
-            [System.Windows.MessageBox]::Show(("Fehler: {0}" -f $_.Exception.Message), "Fehler", "OK", "Error") | Out-Null
+            [System.Windows.MessageBox]::Show(("Error: {0}" -f $_.Exception.Message), "Error", "OK", "Error") | Out-Null
         }
     })
 
@@ -2030,7 +2030,7 @@ function Convert-WebPToPngCloudinary {
         Invoke-WebRequest -Uri $pngUrl -OutFile "$dirname\$outputFile"
         Write-Host "PNG-Datei erfolgreich heruntergeladen: $outputFile"
     } catch {
-        Write-Error "Fehler: $_"
+        Write-Error "Error: $_"
     }
 }
 
@@ -2052,7 +2052,7 @@ function Insert-Commands {
     )
 
     if (!(Test-Path $FilePath)) {
-        Write-Error "Datei '$FilePath' wurde nicht gefunden."
+        Write-Error "File '$FilePath' was not found."
         return
     }
 
@@ -2083,7 +2083,7 @@ function Insert-Commands {
     }
 
     Set-Content -Path $FilePath -Value $newContent
-    Write-Host "Code erfolgreich eingefügt nach: $($insertedMarkers.Keys -join ', ')"
+    Write-Host "Code successfully added after: $($insertedMarkers.Keys -join ', ')"
 }
 
 function get-WinGetCommands{

@@ -24,7 +24,7 @@ Add-Type -AssemblyName System.Windows.Forms    | Out-Null
 
 $continue = $true
 while ($continue) {
-    $choice = Show-StartDialog -Title 'IntuneWin32Helper – Start'
+    $choice = Show-StartDialog
     switch ($choice) {
         'CreateNew'          { "→ Packaging-Assistent starten"; createApps }
         'CreateNewAndDeploy' { "→ Packaging + Zuweisung starten"; createApps -createAndDeploy }
