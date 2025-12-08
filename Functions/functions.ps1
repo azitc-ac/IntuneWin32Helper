@@ -89,7 +89,7 @@
     }
 
     $deployableApps = Get-DeployScripts -PacketRoot $packetRoot #-Recurse
-    $appsToDeploy = Open-SelectDialog -data $deployableApps -title "Select Apps to deploy"
+    $appsToDeploy = Open-SelectDialog -data $deployableApps -title "Select Apps to deploy" -large
     
     # Rückgabe bereinigen (bekannter Workaround gegen int-Werte in Collections)
     if ($appsToDeploy -ne $null) {
@@ -337,7 +337,7 @@ function Show-StartDialog {
 
     # Titel
     $txtTitle = New-Object Windows.Controls.TextBlock
-    $txtTitle.Text = "Was möchtest du tun?"
+    $txtTitle.Text = "What would you like to do?"
     $txtTitle.FontSize = 18
     $txtTitle.FontWeight = 'Bold'
     $txtTitle.Margin = "0,0,0,12"
@@ -471,20 +471,20 @@ function Show-StartDialog {
     # ---------- ENDE ICONS ----------
 
     # Kacheln erstellen
-    $tileCreate = New-OptionTile -Caption 'Create a new app' `
-        -Description 'Startet den Assistenten zum Packaging & Metadaten.' `
+    $tileCreate = New-OptionTile -Caption 'Create apps' `
+        -Description 'Creates app packages.' `
         -IconElement $iconCreate `
         -ReturnValue 'CreateNew' `
         -Width $TileWidth
 
-    $tileCreateDeploy = New-OptionTile -Caption 'Create a new app and deploy it' `
-        -Description 'Erstellt die App und stößt direkt die Zuweisung an.' `
+    $tileCreateDeploy = New-OptionTile -Caption 'Create and deploy apps' `
+        -Description 'Creates app packages and deploys them to Intune.' `
         -IconElement $iconCreateDeployWrap `
         -ReturnValue 'CreateNewAndDeploy' `
         -Width $TileWidth
 
-    $tileDeploy = New-OptionTile -Caption 'Deploy an existing app' `
-        -Description 'Verteilt eine bereits vorhandene Intune-App.' `
+    $tileDeploy = New-OptionTile -Caption 'Deploy existing apps' `
+        -Description 'Deploys existing app packages to Intune.' `
         -IconElement $iconDeploy `
         -ReturnValue 'DeployExisting' `
         -Width $TileWidth
@@ -576,9 +576,8 @@ function Show-StartDialog {
     # Click: Einstellungen öffnen (modal, zentriert)
     $btnSettings.Add_Click({
         try {
-            $null = Edit-SettingsDialog -Owner $dlg -PreferredPaths @(
-                "C:\Users\alex\OneDrive - AZITC\Tools\Administration\IntuneWin32Helper\Config\config.json",
-                (Join-Path $PSScriptRoot "IntuneWin32Helper\Config\config.json")
+            $null = Edit-SettingsDialog -Owner $dlg -PreferredPaths @(                
+                (Join-Path $rootDir "Config\config.json")
             )
         } catch {
             [System.Windows.MessageBox]::Show(("Fehler beim Öffnen der Einstellungen: {0}" -f $_.Exception.Message), "Einstellungen", "OK", "Error") | Out-Null
@@ -614,46 +613,111 @@ function Open-EditDialog {
 
     $window = New-Object Windows.Window
     $window.Title = $title
-    $window.Width = 450
+    $window.Width = 900                     # breiter
     $window.Height = 800
+    $window.SizeToContent = 'Height'        # Breite bleibt fix, Höhe passt sich an
     $window.WindowStartupLocation = 'CenterScreen'
 
     $scrollViewer = New-Object Windows.Controls.ScrollViewer
     $scrollViewer.VerticalScrollBarVisibility = 'Auto'
+    $scrollViewer.HorizontalScrollBarVisibility = 'Disabled' # wir wollen Inhalte strecken statt horizontal scrollen
+    $scrollViewer.HorizontalAlignment = 'Stretch'
 
     $stackPanel = New-Object Windows.Controls.StackPanel
     $stackPanel.Margin = "10"
     $stackPanel.Orientation = 'Vertical'
+    $stackPanel.HorizontalAlignment = 'Stretch'              # wichtig für Breitenübernahme
 
     $textBoxes = [ordered]@{}
 
-    # Verwende PropertyOrder, wenn vorhanden, sonst item.Keys
     $keys = if ($PropertyOrder) { $PropertyOrder } else { $item.Keys }
 
     foreach ($key in $keys) {
         $label = New-Object Windows.Controls.Label
         $label.Content = $key
         $label.Margin = "0,0,0,2"
+        $label.HorizontalAlignment = 'Left'
         $stackPanel.Children.Add($label)
 
         $value = $item[$key]
         $isMultiline = ($value -is [string]) -and ($value -match "`n")
-        if($key -match "cmd"){$isMultiline = $true}
+        if ($key -match "cmd") { $isMultiline = $true }
+
         $textBox = New-Object Windows.Controls.TextBox
         $textBox.Text = $value
         $textBox.Margin = "0,0,0,8"
         $textBox.AcceptsReturn = $isMultiline
         $textBox.TextWrapping = 'Wrap'
+        $textBox.HorizontalAlignment = 'Stretch'             # << streckt die TextBox in Fensterbreite
+        $textBox.MinWidth = 800                               # << sorgt für breite Felder
         if ($isMultiline) {
-            $textBox.Height = 60
+            $textBox.Height = 100
+            $textBox.VerticalScrollBarVisibility = 'Auto'
         } else {
-            $textBox.Height = 25
+            $textBox.Height = 30
         }
 
         $stackPanel.Children.Add($textBox)
         $textBoxes[$key] = $textBox
     }
 
+    # --- Neue Buttons: WinGet und MSI ---
+    $wingetButton = New-Object Windows.Controls.Button
+    $wingetButton.Content = "WinGet"
+    $wingetButton.Width = 100
+    $wingetButton.Margin = "5"
+
+    $msiButton = New-Object Windows.Controls.Button
+    $msiButton.Content = "MSI"
+    $msiButton.Width = 100
+    $msiButton.Margin = "5"
+
+    $wingetButton.Add_Click({
+        $dlg = Show-WinGetBrowserDialog
+        if ($dlg -and $dlg.Result -eq 'OK' -and $dlg.Url) {
+            $info = Get-WinGetInfoFromUri -Uri $dlg.Url
+
+            # Felder befüllen – flexible Zuordnung
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Name','App','AppName','ProductName') -Value $info.Name
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value $info.Version
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Publisher','Hersteller','Vendor','Company') -Value $info.Publisher
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('WingetId','Id','PackageIdentifier') -Value $info.WingetId
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $info.InstallCmd
+        }
+    })
+
+    $msiButton.Add_Click({
+        try {
+            Add-Type -AssemblyName PresentationFramework
+            $ofd = New-Object Microsoft.Win32.OpenFileDialog
+            $ofd.Title  = "MSI auswählen"
+            $ofd.Filter = "MSI-Dateien (*.msi)|*.msi|Alle Dateien (*.*)|*.*"
+            $ofd.Multiselect = $false
+            $ok = $ofd.ShowDialog()
+            if ($ok -eq $true -and $ofd.FileName) {
+                $props = Get-MsiProperties -Path $ofd.FileName
+
+                # Name / Display
+                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Display','DisplayName','Name','App','AppName','ProductName') -Value $props.ProductName
+                # Version / Publisher
+                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value $props.ProductVersion
+                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Publisher','Hersteller','Vendor','Company') -Value $props.Manufacturer
+                # ProductCode (eigene Spalte, wenn vorhanden)
+                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('ProductCode','MsiProductCode') -Value $props.ProductCode
+
+                # Install- & Uninstall-Command
+                $msiInstall = 'msiexec /i "{0}" /qn' -f $ofd.FileName
+                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $msiInstall
+
+                if ($props.ProductCode) {
+                    $msiUninstall = 'msiexec /x {0} /qn' -f $props.ProductCode  # /x = Uninstall, /qn = quiet
+                    Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Uninstall','UninstallCmd','RemoveCmd') -Value $msiUninstall
+                }
+            }
+        } catch { }
+    })
+
+    # OK/Abbrechen
     $okButton = New-Object Windows.Controls.Button
     $okButton.Content = "OK"
     $okButton.Width = 100
@@ -669,6 +733,10 @@ function Open-EditDialog {
     $buttonPanel = New-Object Windows.Controls.StackPanel
     $buttonPanel.Orientation = 'Horizontal'
     $buttonPanel.HorizontalAlignment = 'Right'
+
+    # Reihenfolge: WinGet | MSI | OK | Abbrechen  (WinGet/MSI links neben OK)
+    $buttonPanel.Children.Add($wingetButton)
+    $buttonPanel.Children.Add($msiButton)
     $buttonPanel.Children.Add($okButton)
     $buttonPanel.Children.Add($cancelButton)
 
@@ -680,13 +748,10 @@ function Open-EditDialog {
 
     if ($result -eq $true) {
         $newItem = [ordered]@{}
-        foreach ($key in $keys) {
-            $newItem[$key] = $textBoxes[$key].Text
-        }
+        foreach ($key in $keys) { $newItem[$key] = $textBoxes[$key].Text }
         return $newItem
     }
 }
-
 
 # --- Hilfsfunktion: IE11-Emulation für WPF WebBrowser aktivieren (HKCU) ---
 function Ensure-WebBrowserIE11 {
@@ -726,7 +791,6 @@ function Get-MsiProperties {
     } catch { }
     return $props
 }
-
 
 # --- Hilfsfunktion: Mini-Browser für winget.run anzeigen ---
 function Show-WinGetBrowserDialog {
@@ -857,149 +921,6 @@ function Set-IfPresent {
         }
     }
 }
-
-# --- Dein Edit-Dialog mit zwei neuen Knöpfen: WinGet und MSI ---
-function Open-EditDialog {
-    param (
-        [hashtable]$item,
-        [string]$title,
-        [string[]]$PropertyOrder
-    )
-
-    Add-Type -AssemblyName PresentationFramework
-
-    $window = New-Object Windows.Window
-    $window.Title = $title
-    $window.Width = 450
-    $window.Height = 800
-    $window.WindowStartupLocation = 'CenterScreen'
-
-    $scrollViewer = New-Object Windows.Controls.ScrollViewer
-    $scrollViewer.VerticalScrollBarVisibility = 'Auto'
-
-    $stackPanel = New-Object Windows.Controls.StackPanel
-    $stackPanel.Margin = "10"
-    $stackPanel.Orientation = 'Vertical'
-
-    $textBoxes = [ordered]@{}
-
-    # Reihenfolge der Felder
-    $keys = if ($PropertyOrder) { $PropertyOrder } else { $item.Keys }
-
-    foreach ($key in $keys) {
-        $label = New-Object Windows.Controls.Label
-        $label.Content = $key
-        $label.Margin = "0,0,0,2"
-        $stackPanel.Children.Add($label)
-
-        $value = $item[$key]
-        $isMultiline = ($value -is [string]) -and ($value -match "`n")
-        if ($key -match "cmd") { $isMultiline = $true }
-
-        $textBox = New-Object Windows.Controls.TextBox
-        $textBox.Text = $value
-        $textBox.Margin = "0,0,0,8"
-        $textBox.AcceptsReturn = $isMultiline
-        $textBox.TextWrapping = 'Wrap'
-        if ($isMultiline) { $textBox.Height = 60 } else { $textBox.Height = 25 }
-
-        $stackPanel.Children.Add($textBox)
-        $textBoxes[$key] = $textBox
-    }
-
-    # --- Neue Buttons: WinGet und MSI ---
-    $wingetButton = New-Object Windows.Controls.Button
-    $wingetButton.Content = "WinGet"
-    $wingetButton.Width = 100
-    $wingetButton.Margin = "5"
-
-    $msiButton = New-Object Windows.Controls.Button
-    $msiButton.Content = "MSI"
-    $msiButton.Width = 100
-    $msiButton.Margin = "5"
-
-    $wingetButton.Add_Click({
-        $dlg = Show-WinGetBrowserDialog
-        if ($dlg -and $dlg.Result -eq 'OK' -and $dlg.Url) {
-            $info = Get-WinGetInfoFromUri -Uri $dlg.Url
-
-            # Felder befüllen – flexible Zuordnung
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Name','App','AppName','ProductName') -Value $info.Name
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value $info.Version
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Publisher','Hersteller','Vendor','Company') -Value $info.Publisher
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('WingetId','Id','PackageIdentifier') -Value $info.WingetId
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $info.InstallCmd
-        }
-    })
-
-    $msiButton.Add_Click({
-        try {
-            Add-Type -AssemblyName PresentationFramework
-            $ofd = New-Object Microsoft.Win32.OpenFileDialog
-            $ofd.Title  = "MSI auswählen"
-            $ofd.Filter = "MSI-Dateien (*.msi)|*.msi|Alle Dateien (*.*)|*.*"
-            $ofd.Multiselect = $false
-            $ok = $ofd.ShowDialog()
-            if ($ok -eq $true -and $ofd.FileName) {
-                $props = Get-MsiProperties -Path $ofd.FileName
-
-                # Name / Display
-                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Display','DisplayName','Name','App','AppName','ProductName') -Value $props.ProductName
-                # Version / Publisher
-                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value $props.ProductVersion
-                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Publisher','Hersteller','Vendor','Company') -Value $props.Manufacturer
-                # ProductCode (eigene Spalte, wenn vorhanden)
-                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('ProductCode','MsiProductCode') -Value $props.ProductCode
-
-                # Install- & Uninstall-Command
-                $msiInstall = 'msiexec /i "{0}" /qn' -f $ofd.FileName
-                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $msiInstall
-
-                if ($props.ProductCode) {
-                    $msiUninstall = 'msiexec /x {0} /qn' -f $props.ProductCode  # /x = Uninstall, /qn = quiet
-                    Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Uninstall','UninstallCmd','RemoveCmd') -Value $msiUninstall
-                }
-            }
-        } catch { }
-    })
-
-    # OK/Abbrechen
-    $okButton = New-Object Windows.Controls.Button
-    $okButton.Content = "OK"
-    $okButton.Width = 100
-    $okButton.Margin = "5"
-    $okButton.Add_Click({ $window.DialogResult = $true })
-
-    $cancelButton = New-Object Windows.Controls.Button
-    $cancelButton.Content = "Abbrechen"
-    $cancelButton.Width = 100
-    $cancelButton.Margin = "5"
-    $cancelButton.Add_Click({ $window.DialogResult = $false })
-
-    $buttonPanel = New-Object Windows.Controls.StackPanel
-    $buttonPanel.Orientation = 'Horizontal'
-    $buttonPanel.HorizontalAlignment = 'Right'
-
-    # Reihenfolge: WinGet | MSI | OK | Abbrechen  (WinGet/MSI links neben OK)
-    $buttonPanel.Children.Add($wingetButton)
-    $buttonPanel.Children.Add($msiButton)
-    $buttonPanel.Children.Add($okButton)
-    $buttonPanel.Children.Add($cancelButton)
-
-    $stackPanel.Children.Add($buttonPanel)
-    $scrollViewer.Content = $stackPanel
-    $window.Content = $scrollViewer
-
-    $result = $window.ShowDialog()
-
-    if ($result -eq $true) {
-        $newItem = [ordered]@{}
-        foreach ($key in $keys) { $newItem[$key] = $textBoxes[$key].Text }
-        return $newItem
-    }
-}
-
-
 
 function Open-SelectDialogWithEdit {
     param (
@@ -1286,11 +1207,11 @@ function Open-SelectDialogWithEdit {
     }
 }
 
-
 function Open-SelectDialog {
     param (
         $data,
-        [string]$title
+        [string]$title,
+        [switch]$large
     )
 
     Add-Type -AssemblyName PresentationFramework
@@ -1298,8 +1219,8 @@ function Open-SelectDialog {
     # Fenster erstellen
     $window = New-Object Windows.Window
     $window.Title = $title
-    $window.Width = 800
-    $window.Height = 600
+    if($large){$window.Width = 1024; $window.Height = 768}
+    else{$window.Width = 800; $window.Height = 600}
 
     # DataGrid erstellen
     $dataGrid = New-Object Windows.Controls.DataGrid
@@ -1363,6 +1284,7 @@ function Open-SelectDialog {
     $window.Content = $grid
 
     # Dialog anzeigen
+    $window.WindowStartupLocation = 'CenterScreen'
     $result = $window.ShowDialog()
 
     if ($result -eq $true) {
@@ -1524,7 +1446,7 @@ function Edit-SettingsDialog {
     [Windows.Controls.Grid]::SetRow($cellGrid,0); [Windows.Controls.Grid]::SetColumn($cellGrid,1)
 
     # removeExistingPacketDirOnEachRun
-    $lblRemove = New-Object Windows.Controls.TextBlock; $lblRemove.Text = "removeExistingPacketDirOnEachRun:"; $lblRemove.VerticalAlignment = "Center"
+    $lblRemove = New-Object Windows.Controls.TextBlock; $lblRemove.Text = "removeExistingPackageDirOnEachRun:"; $lblRemove.VerticalAlignment = "Center"
     [Windows.Controls.Grid]::SetRow($lblRemove,1); [Windows.Controls.Grid]::SetColumn($lblRemove,0)
     $cbRemove = New-Object Windows.Controls.CheckBox; $cbRemove.Margin = "6,0,0,0"; $cbRemove.IsChecked = $false
     if ($cfg.removeExistingPacketDirOnEachRun -is [bool]) { $cbRemove.IsChecked = $cfg.removeExistingPacketDirOnEachRun }
