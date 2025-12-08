@@ -1,47 +1,34 @@
 ﻿param(
     [switch]$bulk
 )
-$rootDir = $PSScriptRoot
-if(-not $scriptpath){$rootDir = "C:\Users\alex\OneDrive - AZITC\Tools\Administration\IntuneWin32Helper"}
+$rootDir = "#ROOT#"
 $config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
 
 $packetRoot = $config.packetRoot
-if(-not (Test-Path $packetRoot)){$packetRoot = "C:\Users\alex.HOME\AZITC\work - Pakete"}
+if(-not (Test-Path $packetRoot)){md $packetRoot}
 . $rootDir\functions\functions.ps1
 
 check-prereqs
-if($bulk -ne $true){
-    if(-not $Tenant){$Tenant = Open-SelectDialogWithEdit -data $config.tenants -title "Select Tenant" -size small}
-}
-$Tenant = $Tenant | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
 
-if(Test-Path $rootDir\tokeninfo.json){
-    Write-Host "Token detected, checking validity."
-    $lastinfo = Get-Content -Raw -Path "$rootDir\tokeninfo.json" -Encoding UTF8 | ConvertFrom-Json
-    if($lastinfo.ExpiresOn.ToUniversalTime() -lt (get-date).ToUniversalTime()){
-        # token ist expired, neu holen
-        if(-not (Test-AccessToken)){
-            Write-Host "Token expired, re-auth required."
-            if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
-            $tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -Interactive -ClientId $Tenant.AppId
-        }
-    }
-    else{        
-        # token ist ggf. noch gut
-        if(-not (Test-AccessToken)){
-            if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
-            $tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -Interactive -ClientId $Tenant.AppId
-        }
-        else{
-            Write-Host "Token still valid."
-        }
-    }
+if($bulk -ne $true){
+	# always ask for tenant in single app deployments
+    Write-Host "Show tenant selection dialog"
+    if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
+	$tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.AppId -ClientSecret $Tenant.clientSecret -Verbose
+	$Tenant = $Tenant | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
+	Write-Host "Tenant: $($Tenant.name)"
+}
+
+if(-not (Test-AccessToken)){
+    Write-Host "No access token detected, authentication required."
+    Write-Host "Show tenant selection dialog"
+	if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
+	$tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.AppId -ClientSecret $Tenant.clientSecret -Verbose
+	$Tenant = $Tenant | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
+	Write-Host "Tenant: $($Tenant.name)"
 }
 else{
-    Write-Host "No Token detected, authentication required."
-    # no token info, neues Token erforderlich
-    if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
-    $tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -Interactive -ClientId $Tenant.AppId
+	Write-Host "Access Token still valid."
 }
 
 # Names Application, description and publisher info
@@ -79,7 +66,7 @@ $DetectionRule = New-IntuneWin32AppDetectionRuleScript -ScriptFile ($apppath + "
 $RequirementRule = New-IntuneWin32AppRequirementRule -Architecture x64 -MinimumSupportedOperatingSystem W10_20H2
 
 # Create a Icon from an image file
-if(Test-Path "$apppath\$appname.png"){$ImageFile = "$apppath\$appname.png"}else{"$apppath\defaultLogo.png"}
+if(Test-Path "$apppath\$appname.png"){$ImageFile = "$apppath\$appname.png"}else{$ImageFile = "$apppath\defaultLogo.png"}
 $Icon = New-IntuneWin32AppIcon -FilePath $ImageFile
 
 #Install and Uninstall Commands
@@ -119,3 +106,5 @@ if($existingapps){
 else{    
     Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon #-Verbose
 }
+Write-Host "Finished."
+#if($bulk -ne $true){pause}else{Start-Sleep -Seconds 3}

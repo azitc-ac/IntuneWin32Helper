@@ -7,7 +7,8 @@
   "tenants": [
     {
         "name":  "xyz.onmicrosoft.com",
-        "appid":  "<appid of specific app reg or 14d82eec-204b-4c2f-b7e8-296a70dab67e"
+        "appid":  "<appid of specific app reg>"
+		"clientSecret":  "<some generated secret>"
     },
     {
         "name":  "other tenant 1",
