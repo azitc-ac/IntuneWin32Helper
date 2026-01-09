@@ -2138,7 +2138,7 @@ $arguments = @(
 $WingetDefaultCmdsPart3= @'
 $ArgumentList = $($arguments -join ' ').trim()
 $result=Start-ADTProcess -FilePath $wingetPath -ArgumentList "$ArgumentList" -PassThru
-$result = $result -replace 'Ôûê', '░' -replace 'ÔûÆ', '█'
+$result = $result -replace 'Ôûê', '░' -replace 'ÔûÆ', '█' -replace 'Γûê', '█'
 Write-ADTLogEntry "WinGet output:"
 Write-ADTLogEntry $result
 '@
