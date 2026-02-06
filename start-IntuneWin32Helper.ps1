@@ -1,6 +1,6 @@
 ﻿$toolVersion = "1.3"
 $rootDir = $PSScriptRoot
-if (-not $PSScriptRoot) { $rootDir = "C:\Users\alex\OneDrive - AZITC\Tools\Administration1\IntuneWin32Helper" }
+if (-not $PSScriptRoot) { $rootDir = "C:\Users\alex\OneDrive - AZITC\Tools\Administration\IntuneWin32Helper" }
 $cleandatetime = get-date -uformat "%Y-%m-%d_%H-%M-%S"
 $log = $rootDir + "\Logs\" + $cleandatetime + ".log"
 Start-Transcript $log

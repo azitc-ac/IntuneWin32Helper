@@ -259,7 +259,7 @@ function createApps{
                 }
                 else{
                     #copy default logo
-                    Write-Host "Error during logo download. Taking default logo."
+                    Write-Host "Error during logo download. Using default logo."
                     cp "$rootDir\Logos\defaultlogo.png" $appfolder
                 }
             }
@@ -672,18 +672,17 @@ function Open-EditDialog {
     $msiButton.Width = 100
     $msiButton.Margin = "5"
 
-    $wingetButton.Add_Click({
-        $dlg = Show-WinGetBrowserDialog
-        if ($dlg -and $dlg.Result -eq 'OK' -and $dlg.Url) {
-            $info = Get-WinGetInfoFromUri -Uri $dlg.Url
-
+    $wingetButton.Add_Click({        
+            $info = Show-WinGetSearchDialog
+            #$packName = $info.Name.Replace(" ","")
             # Felder befüllen – flexible Zuordnung
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Name','App','AppName','ProductName') -Value $info.Name
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value $info.Version
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('DisplayName') -Value $info.Name
+            #Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('PackageName') -Value $packName
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value "LatestAvailable"
             Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Publisher','Hersteller','Vendor','Company') -Value $info.Publisher
-            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('WingetId','Id','PackageIdentifier') -Value $info.WingetId
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('ProgramID','Id','PackageIdentifier') -Value $info.Id
             Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $info.InstallCmd
-        }
+            Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('WinGetParams') -Value '"--scope=machine"'
     })
 
     $msiButton.Add_Click({
@@ -696,22 +695,23 @@ function Open-EditDialog {
             $ok = $ofd.ShowDialog()
             if ($ok -eq $true -and $ofd.FileName) {
                 $props = Get-MsiProperties -Path $ofd.FileName
-
+                #$packName = $props.ProductName.Replace(" ","")
                 # Name / Display
+                #Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('PackageName') -Value $packName
                 Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Display','DisplayName','Name','App','AppName','ProductName') -Value $props.ProductName
                 # Version / Publisher
                 Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Version','ProductVersion') -Value $props.ProductVersion
                 Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Publisher','Hersteller','Vendor','Company') -Value $props.Manufacturer
                 # ProductCode (eigene Spalte, wenn vorhanden)
                 Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('ProductCode','MsiProductCode') -Value $props.ProductCode
-
+                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('SingleMSI') -Value "true"
                 # Install- & Uninstall-Command
                 $msiInstall = 'msiexec /i "{0}" /qn' -f $ofd.FileName
-                Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $msiInstall
+                #Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('cmd','InstallCmd','Command') -Value $msiInstall
 
                 if ($props.ProductCode) {
                     $msiUninstall = 'msiexec /x {0} /qn' -f $props.ProductCode  # /x = Uninstall, /qn = quiet
-                    Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Uninstall','UninstallCmd','RemoveCmd') -Value $msiUninstall
+                    #Set-IfPresent -TextBoxes $textBoxes -CandidateKeys @('Uninstall','UninstallCmd','RemoveCmd') -Value $msiUninstall
                 }
             }
         } catch { }
@@ -753,22 +753,6 @@ function Open-EditDialog {
     }
 }
 
-# --- Hilfsfunktion: IE11-Emulation für WPF WebBrowser aktivieren (HKCU) ---
-function Ensure-WebBrowserIE11 {
-    try {
-        $exeName = [System.Diagnostics.Process]::GetCurrentProcess().ProcessName + ".exe"
-        $regPath = 'HKCU:\Software\Microsoft\Internet Explorer\Main\FeatureControl\FEATURE_BROWSER_EMULATION'
-
-        if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
-        $current = (Get-ItemProperty -Path $regPath -Name $exeName -ErrorAction SilentlyContinue).$exeName
-
-        # 11001 = IE11 Edge Mode
-        if (-not $current) {
-            New-ItemProperty -Path $regPath -Name $exeName -Value 11001 -PropertyType DWord -Force | Out-Null
-        }
-    } catch { }
-}
-
 # --- Hilfsfunktion: MSI-Eigenschaften lesen (ProductName/Version/Manufacturer) ---
 function Get-MsiProperties {
     param([Parameter(Mandatory=$true)][string]$Path)
@@ -792,118 +776,24 @@ function Get-MsiProperties {
     return $props
 }
 
-# --- Hilfsfunktion: Mini-Browser für winget.run anzeigen ---
-function Show-WinGetBrowserDialog {
-    Add-Type -AssemblyName PresentationFramework
+function Show-WinGetSearchDialog {
+    # Callback
+    $onSearch = {
+        param($q)
+        if ([string]::IsNullOrWhiteSpace($q)) { return @() }
+        $data = Find-WinGetPackage -Query $q -Source "winget"
+        return $data #| Select-Object Name, Id, Version, Publisher, Moniker, Source
+    }
 
-    Ensure-WebBrowserIE11
-
-    $dlg = New-Object Windows.Window
-    $dlg.Title = "WinGet – Paket suchen"
-    $dlg.Width = 900
-    $dlg.Height = 600
-    $dlg.WindowStartupLocation = 'CenterScreen'
-
-    $root = New-Object Windows.Controls.DockPanel
-
-    $web = New-Object Windows.Controls.WebBrowser
-    $web.Source = [Uri] "https://winget.run"
-
-    $btnPanel = New-Object Windows.Controls.StackPanel
-    $btnPanel.Orientation = 'Horizontal'
-    $btnPanel.HorizontalAlignment = 'Right'
-    $btnPanel.Margin = "5"
-
-    $ok = New-Object Windows.Controls.Button
-    $ok.Content = "OK"
-    $ok.Width = 100
-    $ok.Margin = "5"
-
-    $cancel = New-Object Windows.Controls.Button
-    $cancel.Content = "Cancel"
-    $cancel.Width = 100
-    $cancel.Margin = "5"
-
-    $ok.Add_Click({
-        # Rückgabe über Tag: aktuelle URL
-        try {
-            $uri = $web.Source
-            if ($uri) {
-                $dlg.Tag = @{ Result = 'OK'; Url = $uri.AbsoluteUri }
-            } else {
-                $dlg.Tag = @{ Result = 'OK'; Url = $null }
-            }
-        } catch {
-            $dlg.Tag = @{ Result = 'OK'; Url = $null }
-        }
-        $dlg.Close()
-    })
-    $cancel.Add_Click({
-        $dlg.Tag = @{ Result = 'Cancel' }
-        $dlg.Close()
-    })
-
-    $btnPanel.Children.Add($ok)
-    $btnPanel.Children.Add($cancel)
-
-    [Windows.Controls.DockPanel]::SetDock($btnPanel, 'Bottom')
-    $root.Children.Add($btnPanel)
-    $root.Children.Add($web)
-    $dlg.Content = $root
-
-    $null = $dlg.ShowDialog()
-    return $dlg.Tag
-}
-
-# --- Hilfsfunktion: Infos aus einer winget.run/winstall-Seite ableiten ---
-function Get-WinGetInfoFromUri {
-    param([string]$Uri)
-
-    $out = @{}
-    if (-not $Uri) { return $out }
-
-    try {
-        # Server-HTML abrufen
-        $resp = Invoke-WebRequest -Uri $Uri -UseBasicParsing -ErrorAction Stop
-        $html = $resp.Content
-
-        # 1) Winget-ID aus "winget install ... --id ..." herausziehen
-        $id = $null
-        $m = [regex]::Match($html,'winget\s+install.*?(?:--id[=\s]+)([A-Za-z0-9\.\-]+)', 'IgnoreCase')
-        if ($m.Success) { $id = $m.Groups[1].Value }
-
-        # Fallback: /package/<ID> in der URL
-        if (-not $id) {
-            $m2 = [regex]::Match($Uri,'/package/([A-Za-z0-9\.\-]+)')
-            if ($m2.Success) { $id = $m2.Groups[1].Value }
-        }
-        if ($id) { $out.WingetId = $id }
-
-        # Name grob aus <h1> extrahieren (Seiten-Titel)
-        $m3 = [regex]::Match($html,'<h1[^>]*>(.*?)</h1>','IgnoreCase')
-        if ($m3.Success) { $out.Name = ($m3.Groups[1].Value -replace '<.*?>','').Trim() }
-
-        # Publisher/Version heuristisch
-        $m4 = [regex]::Match($html,'Publisher[^:<]*:\s*([A-Za-z0-9\.\-\s&,]+)','IgnoreCase')
-        if ($m4.Success) { $out.Publisher = $m4.Groups[1].Value.Trim() }
-
-        $m5 = [regex]::Match($html,'Version[^:<]*:\s*([0-9][A-Za-z0-9\.\-\+]+)','IgnoreCase')
-        if ($m5.Success) { $out.Version = $m5.Groups[1].Value.Trim() }
-
-        # 2) Wenn Winget vorhanden: autoritative Details via "winget show --id"
-        $wg = Get-Command winget -ErrorAction SilentlyContinue
-        if ($wg -and $id) {
-            $show = winget show --id $id -e --accept-source-agreements 2>&1
-            foreach ($line in $show) {
-                if ($line -match '^\s*Name\s*:\s*(.+)$')      { $out.Name      = $matches[1].Trim() }
-                elseif ($line -match '^\s*Publisher\s*:\s*(.+)$') { $out.Publisher = $matches[1].Trim() }
-                elseif ($line -match '^\s*Version\s*:\s*(.+)$')   { $out.Version   = $matches[1].Trim() }
-            }
-        }
-
-        if ($id) { $out.InstallCmd = "winget install -e --id $id" }
-    } catch { }
-    return $out
+    # Start mit leerer Liste, Suche über Enter oder Button
+    $selectedApp = Open-SelectDialogWithSearch -data @() -title 'WinGet Search' -large -OnSearch $onSearch #-initialQuery 'vscode'
+    # Rückgabe bereinigen (bekannter Workaround gegen int-Werte in Collections)
+    if ($selectedApp -ne $null) {
+        $selectedApp = $selectedApp | Where-Object {$_ -isnot [int]}
+        if($selectedApp.Id){$publisher = $selectedApp.Id.split(".")[0]}
+        $selectedApp | Add-Member -NotePropertyName Publisher -NotePropertyValue $publisher
+    }
+    return $selectedApp
 }
 
 # --- Hilfsfunktion: Wert in vorhandene Textbox schreiben (wenn Key existiert) ---
@@ -1287,6 +1177,191 @@ function Open-SelectDialog {
     $window.WindowStartupLocation = 'CenterScreen'
     $result = $window.ShowDialog()
 
+    if ($result -eq $true) {
+        return $dataGrid.SelectedItems
+    }
+}
+
+function Open-SelectDialogWithSearch {
+    param (
+        $data,
+        [string]$title,
+        [switch]$large,
+        [ScriptBlock]$OnSearch,
+        [string]$initialQuery = '',
+        [string]$searchPlaceholder = 'Enter search string and hit "Search"...'
+    )
+
+    Add-Type -AssemblyName PresentationFramework
+    Add-Type -AssemblyName PresentationCore
+    Add-Type -AssemblyName WindowsBase
+
+    # Fenster
+    $window = New-Object Windows.Window
+    $window.Title = $title
+    if ($large) { $window.Width = 1024; $window.Height = 768 } else { $window.Width = 800; $window.Height = 600 }
+
+    # Hauptgrid
+    $grid = New-Object Windows.Controls.Grid
+    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    $grid.RowDefinitions[0].Height = [Windows.GridLength]::Auto
+    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    $grid.RowDefinitions[2].Height = [Windows.GridLength]::Auto
+
+    # --- Suchleiste ---
+    $searchPanel = New-Object Windows.Controls.StackPanel
+    $searchPanel.Orientation = 'Horizontal'
+    $searchPanel.Margin = '8'
+
+    $searchBox = New-Object Windows.Controls.TextBox
+    $searchBox.Width = 360
+    $searchBox.Margin = '0,0,8,0'
+    $searchBox.Text = $initialQuery
+    $searchBox.ToolTip = $searchPlaceholder
+
+    $searchButton = New-Object Windows.Controls.Button
+    $searchButton.Content = 'Search'
+    $searchButton.Width = 90
+    $searchButton.Margin = '0,0,8,0'
+
+    $spinner = New-Object Windows.Controls.TextBlock
+    $spinner.VerticalAlignment = 'Center'
+    $spinner.Margin = '8,0,0,0'
+    $spinner.Text = ''
+
+    [void]$searchPanel.Children.Add($searchBox)
+    [void]$searchPanel.Children.Add($searchButton)
+    [void]$searchPanel.Children.Add($spinner)
+
+    # --- DataGrid ---
+    $dataGrid = New-Object Windows.Controls.DataGrid
+    $dataGrid.CanUserSortColumns = $true
+    $dataGrid.SelectionMode = 'Extended'
+    $dataGrid.SelectionUnit = 'FullRow'
+    $dataGrid.AutoGenerateColumns = $false
+    $dataGrid.IsReadOnly = $true
+
+    # PERFORMANCE BOOST
+    $dataGrid.EnableRowVirtualization = $true
+    $dataGrid.EnableColumnVirtualization = $true
+    $dataGrid.SetValue([Windows.Controls.VirtualizingStackPanel]::IsVirtualizingProperty, $true)
+    $dataGrid.SetValue(
+        [Windows.Controls.VirtualizingStackPanel]::VirtualizationModeProperty,
+        [Windows.Controls.VirtualizationMode]::Recycling
+    )
+
+    # Spaltenaufbau
+    $rebuildColumns = {
+        param($sample)
+        $dataGrid.Columns.Clear()
+        if ($sample) {
+            foreach ($property in $sample.PSObject.Properties.Name) {
+                $column = New-Object Windows.Controls.DataGridTextColumn
+                $column.Header = $property
+                $column.Binding = New-Object Windows.Data.Binding($property)
+                $column.CanUserSort = $true
+                $dataGrid.Columns.Add($column) | Out-Null
+            }
+        }
+    }
+
+    $dataGrid.ItemsSource = $data
+    & $rebuildColumns ($data | Select-Object -First 1)
+
+    # --- Buttons ---
+    $okButton = New-Object Windows.Controls.Button
+    $okButton.Height = 40
+    $okButton.Width = 100
+    $okButton.Content = "OK"
+    $okButton.Margin = "5"
+    $okButton.Add_Click({ $window.DialogResult = $true })
+
+    $cancelButton = New-Object Windows.Controls.Button
+    $cancelButton.Height = 40
+    $cancelButton.Width = 100
+    $cancelButton.Content = "Cancel"
+    $cancelButton.Margin = "5"
+    $cancelButton.Add_Click({ $window.DialogResult = $false })
+
+    $buttonPanel = New-Object Windows.Controls.StackPanel
+    $buttonPanel.Orientation = 'Horizontal'
+    $buttonPanel.HorizontalAlignment = 'Right'
+    $buttonPanel.Margin = "10"
+    [void]$buttonPanel.Children.Add($okButton)
+    [void]$buttonPanel.Children.Add($cancelButton)
+
+    # Layout
+    [void]$grid.Children.Add($searchPanel)
+    [Windows.Controls.Grid]::SetRow($searchPanel, 0)
+    [void]$grid.Children.Add($dataGrid)
+    [Windows.Controls.Grid]::SetRow($dataGrid, 1)
+    [void]$grid.Children.Add($buttonPanel)
+    [Windows.Controls.Grid]::SetRow($buttonPanel, 2)
+
+    $window.Content = $grid
+    $window.WindowStartupLocation = 'CenterScreen'
+
+    # --- Search ---
+    $runSearch = {
+        if (-not $OnSearch) { return }
+
+        # Busy
+        $spinner.Text = 'Searching…'
+        $searchButton.IsEnabled = $false
+        $searchBox.IsEnabled = $false
+        $window.Cursor = [System.Windows.Input.Cursors]::Wait
+
+        # UI sofort aktualisieren
+        try { $window.Dispatcher.Invoke([Action]{}, 'Background') } catch { }
+        Start-Sleep -Milliseconds 50
+
+        $query = $searchBox.Text
+        $newData = @()
+
+        try {
+            # *** WICHTIG: Ergebnisse FLACH machen ***
+            $raw = & $OnSearch $query
+            $newData = foreach ($item in $raw) {
+                [pscustomobject]@{
+                    Name      = $item.Name
+                    Id        = $item.Id
+                    Version   = $item.Version
+                    #Publisher = $item.Publisher
+                    Moniker   = $item.Moniker
+                    Source    = $item.Source
+                }
+            }
+        } catch {
+            $newData = @()
+            [System.Windows.MessageBox]::Show("Error while searching: $($_.Exception.Message)") | Out-Null
+        }
+
+        $dataGrid.ItemsSource = $null
+        & $rebuildColumns ($newData | Select-Object -First 1)
+        $dataGrid.ItemsSource = $newData
+
+        # Ready
+        $spinner.Text = ''
+        $searchButton.IsEnabled = $true
+        $searchBox.IsEnabled = $true
+        $window.Cursor = [System.Windows.Input.Cursors]::Arrow
+
+        # Suchfeld wieder aktivieren + Fokus setzen
+        $searchBox.IsEnabled = $true
+        $searchBox.Focus()
+        $searchBox.SelectAll()
+    }
+
+    $searchButton.Add_Click({ & $runSearch })
+    $searchBox.Add_KeyDown({ if ($_.Key -eq 'Enter') { & $runSearch } })
+
+    $window.Add_SourceInitialized({
+        $searchBox.Focus()
+        $searchBox.SelectAll()
+    })
+
+    $result = $window.ShowDialog()
     if ($result -eq $true) {
         return $dataGrid.SelectedItems
     }
@@ -1969,6 +2044,7 @@ function check-prereqs{
     $installedmodules=(Get-InstalledModule -ErrorAction SilentlyContinue).Name
     $requiredmodules=@(
         "IntuneWin32App"
+        "Microsoft.WinGet.Client"
     )
     foreach($requiredmodule in $requiredmodules){ 
         if ($installedmodules -notcontains $requiredmodule){
