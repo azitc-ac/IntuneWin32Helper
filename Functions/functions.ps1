@@ -1,4 +1,4 @@
-﻿function deployApps{    
+function deployApps{    
     
     function Parse-AppFolderName {
         param(
@@ -2045,6 +2045,7 @@ function check-prereqs{
     $requiredmodules=@(
         "IntuneWin32App"
         "Microsoft.WinGet.Client"
+				"PSAppDeployToolkit"
     )
     foreach($requiredmodule in $requiredmodules){ 
         if ($installedmodules -notcontains $requiredmodule){
