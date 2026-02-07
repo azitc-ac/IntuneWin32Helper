@@ -103,7 +103,7 @@ function deployApps{
 
     # Verarbeitung der ausgewählten Apps
     foreach($app in $appsToDeploy){
-        Write-Host "Deploy Application: $($app.AppName) - $($app.Version)" -ForegroundColor Cyan
+        Write-Host "Deploy Application: $($app.AppName) - $($app.AppVersion)" -ForegroundColor Cyan
         #deploy.ps1 aufrufen
         if($appsToDeploy.count -gt 1){
             write-host "Parameter -bulk is set."
