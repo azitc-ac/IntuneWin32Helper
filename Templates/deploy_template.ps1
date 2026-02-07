@@ -14,8 +14,8 @@ if($bulk -ne $true){
 	# always ask for tenant in single app deployments
     Write-Host "Show tenant selection dialog"
     if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
+	$Tenant = $Tenant | Where-Object { $_ -isnot [int]] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
 	$tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.AppId -ClientSecret $Tenant.clientSecret -Verbose
-	$Tenant = $Tenant | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
 	Write-Host "Tenant: $($Tenant.name)"
 }
 
@@ -23,8 +23,8 @@ if(-not (Test-AccessToken)){
     Write-Host "No access token detected, authentication required."
     Write-Host "Show tenant selection dialog"
 	if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
+	$Tenant = $Tenant | Where-Object { $_ -isnot [int]] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
 	$tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.AppId -ClientSecret $Tenant.clientSecret -Verbose
-	$Tenant = $Tenant | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
 	Write-Host "Tenant: $($Tenant.name)"
 }
 else{
@@ -87,7 +87,7 @@ if($existingapps){
             #BULK IS NOT SET
             #ANSWER WAS "YES, CREATE A NEW APP"
             #Builds the App and Uploads to Intune
-            Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon -Notes "Created by IntuneWin32Helper #TOOLVER#" #-Verbose
+            Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon -Notes "Created by IntuneWin32Helper #TOOLVER#" -Verbose
         }
         if($result -eq "No"){
             #BULK IS NOT SET
@@ -100,11 +100,11 @@ if($existingapps){
     }
     else{
         #BULK IS SET, always build a NEW App without asking
-        Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon -Notes "Created by IntuneWin32Helper #TOOLVER#" #-Verbose
+        Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon -Notes "Created by IntuneWin32Helper #TOOLVER#" -Verbose
     }
 }
 else{    
-    Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon #-Verbose
+    Add-IntuneWin32App -FilePath $IntuneWinFile -DisplayName $DisplayName -Description $Description -Publisher $Publisher -AppVersion $AppVersion -InstallExperience "system" -RestartBehavior "suppress" -DetectionRule $DetectionRule -RequirementRule $RequirementRule -InstallCommandLine $InstallCommandLine -UninstallCommandLine $UninstallCommandLine -Icon $Icon -Verbose
 }
 Write-Host "Finished."
 #if($bulk -ne $true){pause}else{Start-Sleep -Seconds 3}
