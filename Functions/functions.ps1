@@ -1475,7 +1475,7 @@ function Edit-SettingsDialog {
     [Windows.Controls.Grid]::SetColumn($tbPath, 0)
 
     $btnBrowse = New-Object Windows.Controls.Button
-    $btnBrowse.Content = "Browse…"
+    $btnBrowse.Content = "Browse..."
     [Windows.Controls.Grid]::SetColumn($btnBrowse, 1)
 
     $null = $pathGrid.Children.Add($tbPath); $null = $pathGrid.Children.Add($btnBrowse)
@@ -1511,7 +1511,7 @@ function Edit-SettingsDialog {
     [Windows.Controls.Grid]::SetRow($lblPacketRoot,0); [Windows.Controls.Grid]::SetColumn($lblPacketRoot,0)
 
     $tbPacketRoot = New-Object Windows.Controls.TextBox; $tbPacketRoot.Margin = "6,0,0,0"; $tbPacketRoot.Text = $cfg.packetRoot
-    $btnPacketBrowse = New-Object Windows.Controls.Button; $btnPacketBrowse.Content = "…"; $btnPacketBrowse.Width = 28; $btnPacketBrowse.Margin = "6,0,0,0"
+    $btnPacketBrowse = New-Object Windows.Controls.Button; $btnPacketBrowse.Content = "..."; $btnPacketBrowse.Width = 28; $btnPacketBrowse.Margin = "6,0,0,0"
     $cellGrid = New-Object Windows.Controls.Grid
     $cellCol1 = New-Object Windows.Controls.ColumnDefinition; $cellCol1.Width = "*"
     $cellCol2 = New-Object Windows.Controls.ColumnDefinition; $cellCol2.Width = "Auto"
