@@ -304,7 +304,7 @@ function Show-StartDialog {
     param(
         [Parameter(Mandatory=$false)]
         [System.Windows.Window]$Owner,
-        [string]$Title = "IntuneWin32Helper – https://blog.zarenko.net/",
+        [string]$Title = "IntuneWin32Helper - https://blog.zarenko.net/",
         [int]$TileWidth = 220 # Breite je Kachel zur sauberen Textumbruch-Steuerung
     )
 
