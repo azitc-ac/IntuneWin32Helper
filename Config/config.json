@@ -1,5 +1,5 @@
 {  
-  "packetRoot": "dir where all apps should be stored before being uploaded",
+  "packetRoot": "C:\\IntuneApps",
   "removeExistingPacketDirOnEachRun": "True",
   "cloudName": "see settings in cloudinary",
   "apiKey": "see settings in cloudinary",
@@ -7,12 +7,13 @@
   "tenants": [
     {
         "name":  "xyz.onmicrosoft.com",
-        "appid":  "<appid of specific app reg>"
+        "appid":  "<appid of specific app reg>",
 		"clientSecret":  "<some generated secret>"
     },
     {
         "name":  "other tenant 1",
-        "appid":  "see above"
+        "appid":  "see above",
+		"clientSecret":  "see above"
     }
   ]
 }
