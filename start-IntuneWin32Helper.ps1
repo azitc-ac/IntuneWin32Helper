@@ -26,12 +26,12 @@ $continue = $true
 while ($continue) {
     $choice = Show-StartDialog
     switch ($choice) {
-        'CreateNew'          { "→ Packaging-Assistent starten"; createApps }
-        'CreateNewAndDeploy' { "→ Packaging + Zuweisung starten"; createApps -createAndDeploy }
-        'DeployExisting'     { "→ Verteilung bestehender App starten"; deployApps }
-        'Cancel'             { "→ Abgebrochen"; $continue = $false }
-        'Closed'             { "→ Mit [X] geschlossen"; $continue = $false }
-        default              { "→ Unerwartet: $choice"; $continue = $false }
+        'CreateNew'          { "-> Start packaging assistant"; createApps }
+        'CreateNewAndDeploy' { "-> Start packaging + deployment"; createApps -createAndDeploy }
+        'DeployExisting'     { "-> Start deployment of existing app"; deployApps }
+        'Cancel'             { "-> Cancelled"; $continue = $false }
+        'Closed'             { "-> Closed with [X]"; $continue = $false }
+        default              { "-> Unexpected: $choice"; $continue = $false }
     }
 }
 Stop-Transcript
