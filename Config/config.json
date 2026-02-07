@@ -1,19 +1,19 @@
-{  
-  "packetRoot": "C:\\IntuneApps",
-  "removeExistingPacketDirOnEachRun": "True",
-  "cloudName": "see settings in cloudinary",
-  "apiKey": "see settings in cloudinary",
-  "apiSecret": "see settings in cloudinary",
-  "tenants": [
-    {
-        "name":  "xyz.onmicrosoft.com",
-        "appid":  "<appid of specific app reg>",
-		"clientSecret":  "<some generated secret>"
-    },
-    {
-        "name":  "other tenant 1",
-        "appid":  "see above",
-		"clientSecret":  "see above"
-    }
-  ]
+{
+    "apiKey":  "",
+    "packetRoot":  "C:\\IntuneApps",
+    "tenants":  [
+                    {
+                        "appid":  "e99492cc-9a89-4b2c-b9ee-025348c049cb",
+                        "name":  "xyz.onmicrosoft.com",
+                        "clientSecret":  "some generated secret"
+                    },
+                    {
+                        "appid":  "b1688a8d-de90-4ce1-8652-029235a48194",
+                        "name":  "other tenant 1",
+                        "clientSecret":  "some generated secret"
+                    }
+                ],
+    "apiSecret":  "",
+    "removeExistingPacketDirOnEachRun":  true,
+    "cloudName":  ""
 }
