@@ -122,6 +122,8 @@ function createApps{
         [string]$csvPath
     )
     $csvPath = "$rootDir\apps.csv"
+	$config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
+	$packetRoot = $config.packetRoot
 
     # --- Wiederholte Auswahl + Verarbeitung, bis Nutzer abbricht ---
     while ($true) {
