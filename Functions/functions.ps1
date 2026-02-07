@@ -1307,7 +1307,7 @@ function Open-SelectDialogWithSearch {
         if (-not $OnSearch) { return }
 
         # Busy
-        $spinner.Text = 'Searching…'
+        $spinner.Text = 'Searching...'
         $searchButton.IsEnabled = $false
         $searchBox.IsEnabled = $false
         $window.Cursor = [System.Windows.Input.Cursors]::Wait
