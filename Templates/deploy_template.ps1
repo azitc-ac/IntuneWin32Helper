@@ -52,7 +52,7 @@ $shortsourcepath = $drive + "\"
 $installer="Invoke-AppDeployToolkit.ps1"
 $SetupFile = $installer
 $Destination = $outpath
-$CreateAppPackage = New-IntuneWin32AppPackage -SourceFolder $shortsourcepath -SetupFile $SetupFile -OutputFolder $Destination -Force #-Verbose
+$CreateAppPackage = New-IntuneWin32AppPackage -SourceFolder $shortsourcepath -SetupFile $SetupFile -OutputFolder $Destination -Force -Verbose
 # Get intunewin file Meta data and assign intunewin file location variable
 $IntuneWinFile = $CreateAppPackage.Path
 $IntuneWinMetaData = Get-IntuneWin32AppMetaData -FilePath $IntuneWinFile
