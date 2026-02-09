@@ -1,4 +1,4 @@
-﻿$toolVersion = "1.3"
+﻿$toolVersion = "2.0"
 $rootDir = $PSScriptRoot
 if (-not $PSScriptRoot) { $rootDir = "C:\Users\alex\OneDrive - AZITC\Tools\Administration\IntuneWin32Helper" }
 $cleandatetime = get-date -uformat "%Y-%m-%d_%H-%M-%S"

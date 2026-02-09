@@ -1,4 +1,4 @@
-function deployApps{    
+﻿function deployApps{    
     
     function Parse-AppFolderName {
         param(
