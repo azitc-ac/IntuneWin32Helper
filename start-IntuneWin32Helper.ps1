@@ -1,11 +1,14 @@
 ﻿$toolVersion = "2.0"
 $rootDir = $PSScriptRoot
 if (-not $PSScriptRoot) { $rootDir = "C:\Users\alex\OneDrive - AZITC\Tools\Administration\IntuneWin32Helper" }
-$cleandatetime = get-date -uformat "%Y-%m-%d_%H-%M-%S"
-$log = $rootDir + "\Logs\" + $cleandatetime + ".log"
-Start-Transcript $log
 
-$config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
+# Funktionen zuerst laden: Protokoll und Konfiguration laufen ueber gemeinsame
+# Helfer (Start-ToolTranscript / Get-ToolConfig), nicht ueber eigene Pfade.
+. "$rootDir\functions\functions.ps1"
+
+$null = Start-ToolTranscript -RootDir $rootDir
+
+$config = Get-ToolConfig -RootDir $rootDir
 
 $cloudName = $config.cloudName
 $ApiKey = $config.apiKey
@@ -13,7 +16,6 @@ $ApiSecret = $config.apiSecret
 $packetRoot = $config.packetRoot
 
 if (-not (Test-Path $packetRoot)) { md $packetRoot }
-. "$rootDir\functions\functions.ps1"
 
 check-prereqs
 

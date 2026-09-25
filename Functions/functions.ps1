@@ -1,4 +1,264 @@
-﻿function deployApps{    
+﻿# ============================================================================
+#  Gemeinsame Helfer
+#  Ein Pfad fuer Dialog-Rueckgaben, Tenant-Auswahl und Graph-Anmeldung.
+# ============================================================================
+
+function Get-DialogSelection {
+    <#
+        .SYNOPSIS
+        Liefert nur die echten Datensaetze einer Dialog-Rueckgabe.
+
+        .DESCRIPTION
+        WPF-Methoden wie UIElementCollection.Add() geben den Einfuege-Index (int)
+        zurueck. Wird dieser Wert in einer Funktion nicht unterdrueckt, landet er
+        im Ausgabestrom und vermischt sich mit dem eigentlichen Ergebnis - daher
+        die frueheren "$_ -isnot [int]"-Filter an den Aufrufstellen. Die Ursache
+        ist jetzt in den Dialogen selbst behoben ([void] vor jedem .Add());
+        diese Funktion ist die einzige Stelle, die das Ergebnis zusaetzlich
+        absichert, statt an jeder Aufrufstelle eigene Filter zu pflegen.
+    #>
+    param($Value)
+
+    if ($null -eq $Value) { return @() }
+    return @($Value | Where-Object { $_ -is [System.Management.Automation.PSCustomObject] })
+}
+
+function Get-SingleDialogSelection {
+    <#
+        Wie Get-DialogSelection, liefert aber hoechstens einen Datensatz - fuer
+        Dialoge, bei denen genau eine Auswahl gemeint ist (z.B. der Tenant).
+    #>
+    param($Value)
+    return (Get-DialogSelection -Value $Value | Select-Object -First 1)
+}
+
+function Test-IntuneAccessToken {
+    <#
+        Kapselt Test-AccessToken aus dem Modul IntuneWin32App. Fehlt das Cmdlet
+        oder wirft es, gilt "kein gueltiger Token" - dann wird neu angemeldet,
+        statt den Lauf abzubrechen.
+    #>
+    if (-not (Get-Command -Name Test-AccessToken -ErrorAction SilentlyContinue)) { return $false }
+    try   { return [bool](Test-AccessToken) }
+    catch { return $false }
+}
+
+function Get-ToolConfigPath {
+    <#
+        .SYNOPSIS
+        Liefert den Pfad zur config.json und legt sie beim ersten Start an.
+
+        .DESCRIPTION
+        Config\config.json ist nicht versioniert, weil sie clientSecret im
+        Klartext aufnimmt. In einem frischen Clone fehlt sie deshalb und wird
+        hier einmalig aus Config\config.sample.json erzeugt.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir
+    )
+
+    $configPath = Join-Path (Join-Path $RootDir "Config") "config.json"
+    if (Test-Path -LiteralPath $configPath) { return $configPath }
+
+    $samplePath = Join-Path (Join-Path $RootDir "Config") "config.sample.json"
+    if (-not (Test-Path -LiteralPath $samplePath)) {
+        throw "Neither Config\config.json nor Config\config.sample.json found under $RootDir"
+    }
+
+    Write-Host "Config\config.json not found - creating it from Config\config.sample.json." -ForegroundColor Yellow
+    Copy-Item -LiteralPath $samplePath -Destination $configPath
+    Write-Host "Fill in tenants and packetRoot before deploying (gear icon in the start dialog)." -ForegroundColor Yellow
+
+    return $configPath
+}
+
+function Get-ToolConfig {
+    <#
+        Einziger Lesepfad fuer die Konfiguration. start-IntuneWin32Helper.ps1,
+        createApps und das erzeugte deploy.ps1 benutzen ausschliesslich diese
+        Funktion - sonst driften Pfad, Kodierung und das Anlegen der Datei.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir
+    )
+
+    $configPath = Get-ToolConfigPath -RootDir $RootDir
+    return (Get-Content -Raw -Path $configPath -Encoding UTF8 | ConvertFrom-Json)
+}
+
+function Start-ToolTranscript {
+    <#
+        .SYNOPSIS
+        Startet das Sitzungsprotokoll und stellt das Logs-Verzeichnis sicher.
+
+        .DESCRIPTION
+        Logs\ ist nicht versioniert und existiert in einem frischen Clone nicht.
+        Ob Start-Transcript ein fehlendes Verzeichnis selbst anlegt, haengt von
+        der PowerShell-Version ab (7.4 legt es an) - hier wird es ausdruecklich
+        angelegt, damit das Verhalten nicht davon abhaengt.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir
+    )
+
+    $logDir = Join-Path $RootDir "Logs"
+    if (-not (Test-Path -LiteralPath $logDir)) {
+        $null = New-Item -Path $logDir -ItemType Directory -Force
+    }
+
+    $logPath = Join-Path $logDir ((Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + ".log")
+    Start-Transcript -Path $logPath | Out-Null
+    return $logPath
+}
+
+function Initialize-IntuneConnection {
+    <#
+        .SYNOPSIS
+        Waehlt den Ziel-Tenant und stellt die Anmeldung an Intune Graph sicher.
+
+        .DESCRIPTION
+        Der EINZIGE Pfad fuer Tenant-Auswahl und Anmeldung: deployApps,
+        createApps und das erzeugte deploy.ps1 rufen ausschliesslich diese
+        Funktion. Ein Auswahldialog erscheint nur, wenn noch kein Tenant bekannt
+        ist. Wird ein bereits gewaehlter Tenant uebergeben, laeuft auch eine
+        noetige Neuanmeldung (abgelaufener Token) ohne Rueckfrage durch.
+    #>
+    [CmdletBinding()]
+    param(
+        # Bereits gewaehlter Tenant. Fehlt er, wird genau einmal gefragt.
+        $Tenant,
+
+        # Auswahlliste, ueblicherweise $config.tenants
+        [Parameter(Mandatory = $true)]
+        $Tenants,
+
+        # Erzwingt eine Neuanmeldung, auch bei noch gueltigem Token
+        [switch]$Force
+    )
+
+    $Tenant = Get-SingleDialogSelection -Value $Tenant
+
+    if (-not $Tenant) {
+        Write-Host "Show tenant selection dialog"
+        $Tenant = Get-SingleDialogSelection -Value (Open-SelectDialog -data @($Tenants) -title "Select Tenant" -size small)
+    }
+
+    if (-not $Tenant) {
+        throw "No tenant selected - aborting."
+    }
+
+    if ($Force -or (-not (Test-IntuneAccessToken))) {
+        Write-Host ("Authenticating against tenant [{0}]" -f $Tenant.name)
+        $null = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.appid -ClientSecret $Tenant.clientSecret -Verbose
+    }
+    else {
+        Write-Host ("Access token still valid for tenant [{0}]." -f $Tenant.name)
+    }
+
+    return $Tenant
+}
+
+function Write-DeployScript {
+    <#
+        .SYNOPSIS
+        Erzeugt das deploy.ps1 eines App-Ordners aus der aktuellen Vorlage.
+
+        .DESCRIPTION
+        Anlegen (createApps) und Erneuern (Update-DeployScript) teilen diesen
+        einen Pfad. Ohne das wirkt eine Vorlagenaenderung nur auf neu erstellte
+        Apps, waehrend bereits erstellte Ordner ihre alte Kopie behalten.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$AppFolder,
+        [Parameter(Mandatory = $true)][string]$AppName,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$AppVersion,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Publisher,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Description,
+        [Parameter(Mandatory = $true)][string]$RootDir,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$ToolVersion
+    )
+
+    $templatePath = Join-Path (Join-Path $RootDir "Templates") "deploy_template.ps1"
+    if (-not (Test-Path -LiteralPath $templatePath)) {
+        throw "Deploy template not found: $templatePath"
+    }
+
+    $template = Get-Content -LiteralPath $templatePath
+    $template -replace "#ROOT#", $RootDir -replace "#DN#", $AppName -replace "#PN#", $AppName `
+        -replace "#PUB#", $Publisher -replace "#DM#", "DetectionScript" -replace "#VER#", $AppVersion `
+        -replace "#DESC#", $Description -replace "#TOOLVER#", $ToolVersion |
+        Out-File (Join-Path $AppFolder "deploy.ps1") -Encoding utf8 -Force
+}
+
+function Update-DeployScript {
+    <#
+        .SYNOPSIS
+        Zieht ein vorhandenes deploy.ps1 auf die aktuelle Vorlage nach.
+
+        .DESCRIPTION
+        Aeltere deploy.ps1 fragen den Tenant selbst ab und koennen keinen
+        uebergebenen Tenant annehmen - in einem Bulk-Lauf erscheint der Dialog
+        dadurch pro App. Hier wird ein solches Skript neu erzeugt; die
+        app-spezifischen Werte werden aus dem alten Skript uebernommen und eine
+        Sicherung als deploy.ps1.bak angelegt. Ein Skript, das den Parameter
+        schon kennt, bleibt unberuehrt - hand-angepasste aktuelle Skripte werden
+        also nicht ueberschrieben.
+
+        .OUTPUTS
+        [bool] $true, wenn erneuert wurde.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$DeployScriptPath,
+        [Parameter(Mandatory = $true)][string]$RootDir,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$ToolVersion
+    )
+
+    if (-not (Test-Path -LiteralPath $DeployScriptPath)) { return $false }
+
+    $raw = Get-Content -LiteralPath $DeployScriptPath -Raw
+
+    # Schon aktuell? Dann nichts anfassen.
+    if (($raw -match '\$Tenant') -and ($raw -match 'Initialize-IntuneConnection')) { return $false }
+
+    $readValue = {
+        param($text, $name)
+        $m = [regex]::Match($text, ('(?m)^\s*\$' + $name + '\s*=\s*"(.*?)"\s*$'))
+        if ($m.Success) { return $m.Groups[1].Value }
+        return ""
+    }
+
+    $appFolder   = Split-Path -Parent $DeployScriptPath
+    $appName     = & $readValue $raw "PackageName"
+    $appVersion  = & $readValue $raw "AppVersion"
+    $publisher   = & $readValue $raw "Publisher"
+    $description = & $readValue $raw "Description"
+
+    # Fallback: Werte aus dem Ordnernamen "<Name> - <Version>" ableiten.
+    if (-not $appName) {
+        $leaf = Split-Path -Leaf $appFolder
+        $idx  = $leaf.LastIndexOf(" - ")
+        if ($idx -ge 0) {
+            $appName = $leaf.Substring(0, $idx).Trim()
+            if (-not $appVersion) { $appVersion = $leaf.Substring($idx + 3).Trim() }
+        }
+        else { $appName = $leaf }
+    }
+
+    Copy-Item -LiteralPath $DeployScriptPath -Destination ($DeployScriptPath + ".bak") -Force
+    Write-Host ("Updating outdated deploy.ps1 from template: {0} (backup: deploy.ps1.bak)" -f $DeployScriptPath) -ForegroundColor Yellow
+
+    Write-DeployScript -AppFolder $appFolder -AppName $appName -AppVersion $appVersion `
+        -Publisher $publisher -Description $description -RootDir $RootDir -ToolVersion $ToolVersion
+
+    return $true
+}
+
+function deployApps{    
     
     function Parse-AppFolderName {
         param(
@@ -97,21 +357,33 @@
     }
 
     # Abbruchbedingung: wenn Nutzer "Cancel" klickt oder Fenster schließt → keine gültigen Items
+    # return, NICHT break: deployApps hat keine eigene Schleife, ein break wuerde die
+    # while-Schleife im Startskript beenden und damit das ganze Tool schliessen.
     if ($appsToDeploy -eq $null -or ($appsToDeploy | Measure-Object).Count -eq 0) {
-        break
+        return
     }
 
+    # Ziel-Tenant EINMAL fuer den gesamten Lauf waehlen und anmelden. Die Auswahl
+    # wird an jedes deploy.ps1 uebergeben, damit dort kein weiterer Dialog kommt.
+    $tenant = Initialize-IntuneConnection -Tenants $config.tenants
+
     # Verarbeitung der ausgewählten Apps
+    $isBulk = (@($appsToDeploy).Count -gt 1)
+    if($isBulk){ write-host "Parameter -bulk is set." } else { write-host "Parameter -bulk is NOT set." }
+
     foreach($app in $appsToDeploy){
         Write-Host "Deploy Application: $($app.AppName) - $($app.AppVersion)" -ForegroundColor Cyan
+
+        # Aeltere deploy.ps1 kennen -Tenant nicht und wuerden erneut fragen:
+        # aus der aktuellen Vorlage nachziehen (Sicherung wird angelegt).
+        $null = Update-DeployScript -DeployScriptPath $app.FullPath -RootDir $rootDir -ToolVersion $toolVersion
+
         #deploy.ps1 aufrufen
-        if($appsToDeploy.count -gt 1){
-            write-host "Parameter -bulk is set."
-            & $app.FullPath -bulk
+        if($isBulk){
+            & $app.FullPath -bulk -Tenant $tenant
         }
         else{
-            write-host "Parameter -bulk is NOT set."
-            & $app.FullPath    
+            & $app.FullPath -Tenant $tenant
         }
     }
 }
@@ -122,8 +394,11 @@ function createApps{
         [string]$csvPath
     )
     $csvPath = "$rootDir\apps.csv"
-	$config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
+	$config = Get-ToolConfig -RootDir $rootDir
 	$packetRoot = $config.packetRoot
+
+    # Bleibt ueber alle Schleifendurchlaeufe erhalten: einmal gewaehlt, immer wieder benutzt.
+    $tenant = $null
 
     # --- Wiederholte Auswahl + Verarbeitung, bis Nutzer abbricht ---
     while ($true) {
@@ -142,6 +417,12 @@ function createApps{
         }
 
         # Verarbeitung der ausgewählten Apps
+
+        # Bei "create and deploy" den Ziel-Tenant einmal pro Lauf waehlen.
+        # $tenant ueberlebt die Schleife, der Dialog kommt daher nur beim ersten Stapel.
+        if($createAndDeploy){
+            $tenant = Initialize-IntuneConnection -Tenant $tenant -Tenants $config.tenants
+        }
 
     foreach($app in $apps){
         # Erstellen der Anwendung
@@ -268,10 +549,9 @@ function createApps{
         }
 
         #deploy template an App anpassen und kopieren
-        $go = Get-Content "$rootDir\Templates\deploy_template.ps1"
-        $go -replace "#ROOT#",$rootDir -replace "#DN#",$AppName -replace "#PN#",$AppName -replace "#PUB#",$AppPublisher `
-             -replace "#DM#", "DetectionScript" -replace "#VER#", $AppVersion -replace "#DESC#", $desc`
-             -replace "#TOOLVER#", $toolVersion | Out-File $SourcePath\deploy.ps1 -Encoding utf8 -Force
+        # Gemeinsamer Pfad mit Update-DeployScript - Anlegen und Erneuern nutzen EINE Quelle.
+        Write-DeployScript -AppFolder $SourcePath -AppName $AppName -AppVersion $AppVersion `
+            -Publisher $AppPublisher -Description $desc -RootDir $rootDir -ToolVersion $toolVersion
   
         # manuell: files reinpacken, install u uninstall routine einpflegen
         if($AppVersion -ne "LatestAvailable"){
@@ -283,14 +563,14 @@ function createApps{
             pause
         }
         if($createAndDeploy){
-            #deploy.ps1 aufrufen
-            if($apps.count -gt 1){
+            #deploy.ps1 aufrufen - der Tenant kommt aus dem Lauf, daher kein weiterer Dialog
+            if(@($apps).Count -gt 1){
                 write-host "Parameter -bulk is set."
-                & $SourcePath\deploy.ps1 -bulk
+                & $SourcePath\deploy.ps1 -bulk -Tenant $tenant
             }
             else{
                 write-host "Parameter -bulk is NOT set."
-                & $SourcePath\deploy.ps1    
+                & $SourcePath\deploy.ps1 -Tenant $tenant
             }
             # und weiter gehts mit der nächsten App
         }
@@ -639,7 +919,7 @@ function Open-EditDialog {
         $label.Content = $key
         $label.Margin = "0,0,0,2"
         $label.HorizontalAlignment = 'Left'
-        $stackPanel.Children.Add($label)
+        [void]$stackPanel.Children.Add($label)
 
         $value = $item[$key]
         $isMultiline = ($value -is [string]) -and ($value -match "`n")
@@ -659,7 +939,7 @@ function Open-EditDialog {
             $textBox.Height = 30
         }
 
-        $stackPanel.Children.Add($textBox)
+        [void]$stackPanel.Children.Add($textBox)
         $textBoxes[$key] = $textBox
     }
 
@@ -737,12 +1017,12 @@ function Open-EditDialog {
     $buttonPanel.HorizontalAlignment = 'Right'
 
     # Reihenfolge: WinGet | MSI | OK | Cancel  (WinGet/MSI links neben OK)
-    $buttonPanel.Children.Add($wingetButton)
-    $buttonPanel.Children.Add($msiButton)
-    $buttonPanel.Children.Add($okButton)
-    $buttonPanel.Children.Add($cancelButton)
+    [void]$buttonPanel.Children.Add($wingetButton)
+    [void]$buttonPanel.Children.Add($msiButton)
+    [void]$buttonPanel.Children.Add($okButton)
+    [void]$buttonPanel.Children.Add($cancelButton)
 
-    $stackPanel.Children.Add($buttonPanel)
+    [void]$stackPanel.Children.Add($buttonPanel)
     $scrollViewer.Content = $stackPanel
     $window.Content = $scrollViewer
 
@@ -1103,16 +1383,27 @@ function Open-SelectDialog {
     param (
         $data,
         [string]$title,
-        [switch]$large
+        [switch]$large,
+        # Gleiche Bedeutung wie in Open-SelectDialogWithEdit, damit beide Dialoge
+        # gleich aufgerufen werden koennen. -large bleibt aus Kompatibilitaet
+        # erhalten und entspricht -size large.
+        [ValidateSet("small", "medium", "large")]
+        [string]$size
     )
 
-    Add-Type -AssemblyName PresentationFramework
+    Add-Type -AssemblyName PresentationFramework | Out-Null
+
+    if ($large) { $size = "large" }
+    if ([string]::IsNullOrEmpty($size)) { $size = "medium" }
 
     # Fenster erstellen
     $window = New-Object Windows.Window
     $window.Title = $title
-    if($large){$window.Width = 1024; $window.Height = 768}
-    else{$window.Width = 800; $window.Height = 600}
+    switch ($size) {
+        "small" { $window.Width = 640;  $window.Height = 400 }
+        "large" { $window.Width = 1024; $window.Height = 768 }
+        default { $window.Width = 800;  $window.Height = 600 }
+    }
 
     # DataGrid erstellen
     $dataGrid = New-Object Windows.Controls.DataGrid
@@ -1128,7 +1419,7 @@ function Open-SelectDialog {
         $column.Header = $property
         $column.Binding = New-Object Windows.Data.Binding($property)
         $column.CanUserSort = $true
-        $dataGrid.Columns.Add($column)
+        [void]$dataGrid.Columns.Add($column)
     }
 
     # ItemsSource setzen
@@ -1159,18 +1450,18 @@ function Open-SelectDialog {
     $buttonPanel.Orientation = 'Horizontal'
     $buttonPanel.HorizontalAlignment = 'Right'
     $buttonPanel.Margin = "10"
-    $buttonPanel.Children.Add($okButton)
-    $buttonPanel.Children.Add($cancelButton)
+    [void]$buttonPanel.Children.Add($okButton)
+    [void]$buttonPanel.Children.Add($cancelButton)
 
     # Layout-Grid
     $grid = New-Object Windows.Controls.Grid
-    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
-    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    [void]$grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    [void]$grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
     $grid.RowDefinitions[1].Height = [Windows.GridLength]::Auto
 
-    $grid.Children.Add($dataGrid)
+    [void]$grid.Children.Add($dataGrid)
     [Windows.Controls.Grid]::SetRow($dataGrid, 0)
-    $grid.Children.Add($buttonPanel)
+    [void]$grid.Children.Add($buttonPanel)
     [Windows.Controls.Grid]::SetRow($buttonPanel, 1)
 
     $window.Content = $grid
@@ -1205,10 +1496,10 @@ function Open-SelectDialogWithSearch {
 
     # Hauptgrid
     $grid = New-Object Windows.Controls.Grid
-    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    [void]$grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
     $grid.RowDefinitions[0].Height = [Windows.GridLength]::Auto
-    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
-    $grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    [void]$grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
+    [void]$grid.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
     $grid.RowDefinitions[2].Height = [Windows.GridLength]::Auto
 
     # --- Suchleiste ---

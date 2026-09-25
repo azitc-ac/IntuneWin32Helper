@@ -1,0 +1,9 @@
+# Lokale Konfiguration: enthaelt clientSecret im Klartext und gehoert nicht ins
+# Repo. Wird beim ersten Start aus Config/config.sample.json erzeugt.
+Config/config.json
+
+# Laufzeit-Ausgaben
+Logs/
+
+# Sicherungen, die Update-DeployScript beim Nachziehen alter Skripte anlegt
+*.bak
