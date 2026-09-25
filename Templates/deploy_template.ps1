@@ -1,5 +1,9 @@
 ﻿param(
-    [switch]$bulk
+    [switch]$bulk,
+
+    # Ziel-Tenant, uebergeben vom aufrufenden Lauf (deployApps / createApps).
+    # Ist er gesetzt, erscheint in diesem Skript kein Auswahldialog mehr.
+    $Tenant
 )
 $rootDir = "#ROOT#"
 $config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
@@ -10,26 +14,12 @@ if(-not (Test-Path $packetRoot)){md $packetRoot}
 
 check-prereqs
 
-if($bulk -ne $true){
-	# always ask for tenant in single app deployments
-    Write-Host "Show tenant selection dialog"
-    if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
-	$Tenant = $Tenant | Where-Object { $_ -isnot [int]] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
-	$tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.AppId -ClientSecret $Tenant.clientSecret -Verbose
-	Write-Host "Tenant: $($Tenant.name)"
-}
-
-if(-not (Test-AccessToken)){
-    Write-Host "No access token detected, authentication required."
-    Write-Host "Show tenant selection dialog"
-	if(-not $Tenant){$Tenant = Open-SelectDialog -data $config.tenants -title "Select Tenant" -size small}
-	$Tenant = $Tenant | Where-Object { $_ -isnot [int]] } # bug mit Dialog und Rückgabe Collections, sonst auch int werte enthalten
-	$tokeninfo = Connect-MSIntuneGraph -TenantID $Tenant.name -ClientId $Tenant.AppId -ClientSecret $Tenant.clientSecret -Verbose
-	Write-Host "Tenant: $($Tenant.name)"
-}
-else{
-	Write-Host "Access Token still valid."
-}
+# Tenant-Auswahl und Anmeldung laufen ueber EINEN Pfad (Initialize-IntuneConnection).
+# Wurde der Tenant vom aufrufenden Lauf uebergeben, erscheint hier kein Dialog -
+# auch dann nicht, wenn der Token abgelaufen ist und neu geholt werden muss.
+# Fehlt er (direkter Aufruf dieses Skripts), wird genau einmal gefragt.
+$Tenant = Initialize-IntuneConnection -Tenant $Tenant -Tenants $config.tenants
+Write-Host "Tenant: $($Tenant.name)"
 
 # Names Application, description and publisher info
 $PackageName = "#PN#"
@@ -94,7 +84,12 @@ if($existingapps){
             #ANSWER WAS "NO, UPDATE an existing APP"
             #Builds the App and Uploads to Intune
             #Updates the App 
-            $app = Get-IntuneWin32App -DisplayName $Displayname | ogv -PassThru -Title "Select the app to update"
+            # Auswahl ueber den Dialog des Tools statt Out-GridView (ogv):
+            # ogv braucht einen STA-Host und fehlt in PowerShell 7 ohne Zusatzmodul.
+            $updateCandidates = Get-IntuneWin32App -DisplayName $Displayname |
+                Select-Object id, displayName, displayVersion, createdDateTime
+            $app = Get-SingleDialogSelection -Value (Open-SelectDialog -data @($updateCandidates) -title "Select the app to update" -size medium)
+            if (-not $app) { throw "No application selected for update - aborting." }
             Update-IntuneWin32AppPackageFile -ID $app.id -FilePath $IntuneWinFile
         }
     }
