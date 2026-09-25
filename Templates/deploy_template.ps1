@@ -6,11 +6,14 @@
     $Tenant
 )
 $rootDir = "#ROOT#"
-$config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
+
+# Funktionen zuerst laden: die Konfiguration kommt ueber Get-ToolConfig.
+. $rootDir\functions\functions.ps1
+
+$config = Get-ToolConfig -RootDir $rootDir
 
 $packetRoot = $config.packetRoot
 if(-not (Test-Path $packetRoot)){md $packetRoot}
-. $rootDir\functions\functions.ps1
 
 check-prereqs
 

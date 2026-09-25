@@ -43,6 +43,77 @@ function Test-IntuneAccessToken {
     catch { return $false }
 }
 
+function Get-ToolConfigPath {
+    <#
+        .SYNOPSIS
+        Liefert den Pfad zur config.json und legt sie beim ersten Start an.
+
+        .DESCRIPTION
+        Config\config.json ist nicht versioniert, weil sie clientSecret im
+        Klartext aufnimmt. In einem frischen Clone fehlt sie deshalb und wird
+        hier einmalig aus Config\config.sample.json erzeugt.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir
+    )
+
+    $configPath = Join-Path (Join-Path $RootDir "Config") "config.json"
+    if (Test-Path -LiteralPath $configPath) { return $configPath }
+
+    $samplePath = Join-Path (Join-Path $RootDir "Config") "config.sample.json"
+    if (-not (Test-Path -LiteralPath $samplePath)) {
+        throw "Neither Config\config.json nor Config\config.sample.json found under $RootDir"
+    }
+
+    Write-Host "Config\config.json not found - creating it from Config\config.sample.json." -ForegroundColor Yellow
+    Copy-Item -LiteralPath $samplePath -Destination $configPath
+    Write-Host "Fill in tenants and packetRoot before deploying (gear icon in the start dialog)." -ForegroundColor Yellow
+
+    return $configPath
+}
+
+function Get-ToolConfig {
+    <#
+        Einziger Lesepfad fuer die Konfiguration. start-IntuneWin32Helper.ps1,
+        createApps und das erzeugte deploy.ps1 benutzen ausschliesslich diese
+        Funktion - sonst driften Pfad, Kodierung und das Anlegen der Datei.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir
+    )
+
+    $configPath = Get-ToolConfigPath -RootDir $RootDir
+    return (Get-Content -Raw -Path $configPath -Encoding UTF8 | ConvertFrom-Json)
+}
+
+function Start-ToolTranscript {
+    <#
+        .SYNOPSIS
+        Startet das Sitzungsprotokoll und stellt das Logs-Verzeichnis sicher.
+
+        .DESCRIPTION
+        Logs\ ist nicht versioniert und existiert in einem frischen Clone nicht.
+        Ob Start-Transcript ein fehlendes Verzeichnis selbst anlegt, haengt von
+        der PowerShell-Version ab (7.4 legt es an) - hier wird es ausdruecklich
+        angelegt, damit das Verhalten nicht davon abhaengt.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir
+    )
+
+    $logDir = Join-Path $RootDir "Logs"
+    if (-not (Test-Path -LiteralPath $logDir)) {
+        $null = New-Item -Path $logDir -ItemType Directory -Force
+    }
+
+    $logPath = Join-Path $logDir ((Get-Date -Format "yyyy-MM-dd_HH-mm-ss") + ".log")
+    Start-Transcript -Path $logPath | Out-Null
+    return $logPath
+}
+
 function Initialize-IntuneConnection {
     <#
         .SYNOPSIS
@@ -111,7 +182,7 @@ function Write-DeployScript {
         [Parameter(Mandatory = $true)][AllowEmptyString()][string]$ToolVersion
     )
 
-    $templatePath = Join-Path $RootDir "Templates\deploy_template.ps1"
+    $templatePath = Join-Path (Join-Path $RootDir "Templates") "deploy_template.ps1"
     if (-not (Test-Path -LiteralPath $templatePath)) {
         throw "Deploy template not found: $templatePath"
     }
@@ -323,7 +394,7 @@ function createApps{
         [string]$csvPath
     )
     $csvPath = "$rootDir\apps.csv"
-	$config = Get-Content -Raw -Path "$rootDir\config\config.json" -Encoding UTF8 | ConvertFrom-Json
+	$config = Get-ToolConfig -RootDir $rootDir
 	$packetRoot = $config.packetRoot
 
     # Bleibt ueber alle Schleifendurchlaeufe erhalten: einmal gewaehlt, immer wieder benutzt.

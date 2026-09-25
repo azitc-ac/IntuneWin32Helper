@@ -172,7 +172,7 @@ foreach ($p in $parsed.Values) {
 #    deploy.ps1 selbst - im Bulk-Lauf also pro App erneut.
 # ---------------------------------------------------------------------------
 $checked++
-$templatePath = Join-Path $RepoRoot "Templates\deploy_template.ps1"
+$templatePath = Join-Path (Join-Path $RepoRoot "Templates") "deploy_template.ps1"
 if (-not (Test-Path -LiteralPath $templatePath)) {
     Add-Failure "TenantOnePath" "Templates\deploy_template.ps1 fehlt"
 }
@@ -255,6 +255,81 @@ foreach ($p in $parsed.Values) {
                 Add-Failure "BreakOutsideLoop" ("{0}:{1} {2} enthaelt '{3}' ohne eigene Schleife - bricht die Schleife des Aufrufers ab (return verwenden)" -f `
                     $p.File.Name, $jump.Extent.StartLineNumber, $fn.Name, $jump.Extent.Text.Trim())
             }
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 8) Konfiguration nur ueber Get-ToolConfig. Frueher las jedes Skript die
+#    config.json selbst - Pfad, Kodierung und das Anlegen der Datei drifteten
+#    dadurch auseinander. Zusaetzlich muss Config/config.json ignoriert sein:
+#    sie nimmt clientSecret im Klartext auf.
+# ---------------------------------------------------------------------------
+$enclosingFunction = {
+    param($node)
+    $n = $node
+    while ($n -ne $null) {
+        if ($n -is [System.Management.Automation.Language.FunctionDefinitionAst]) { return $n.Name }
+        $n = $n.Parent
+    }
+    return ""
+}
+
+foreach ($p in $parsed.Values) {
+    $checked++
+    $commands = $p.Ast.FindAll({
+        param($n) $n -is [System.Management.Automation.Language.CommandAst]
+    }, $true)
+
+    foreach ($cmd in $commands) {
+        $name = $cmd.GetCommandName()
+        if ($name -ne "Get-Content") { continue }
+        if ($cmd.Extent.Text -notmatch 'config\.json') { continue }
+
+        $fn = & $enclosingFunction $cmd
+        if ($fn -ne "Get-ToolConfig") {
+            Add-Failure "ConfigOnePath" ("{0}:{1} liest config.json direkt (in '{2}') - Get-ToolConfig verwenden" -f `
+                $p.File.Name, $cmd.Extent.StartLineNumber, $fn)
+        }
+    }
+}
+
+$checked++
+$gitignorePath = Join-Path $RepoRoot ".gitignore"
+if (-not (Test-Path -LiteralPath $gitignorePath)) {
+    Add-Failure "ConfigOnePath" ".gitignore fehlt - Config/config.json wuerde mit clientSecret versioniert"
+}
+else {
+    $ignored = Get-Content -LiteralPath $gitignorePath | ForEach-Object { $_.Trim() }
+    if ($ignored -notcontains "Config/config.json") {
+        Add-Failure "ConfigOnePath" ".gitignore listet Config/config.json nicht - clientSecret koennte committet werden"
+    }
+}
+
+$checked++
+$samplePath = Join-Path (Join-Path $RepoRoot "Config") "config.sample.json"
+if (-not (Test-Path -LiteralPath $samplePath)) {
+    Add-Failure "ConfigOnePath" "Config\config.sample.json fehlt - ein frischer Clone kann keine config.json erzeugen"
+}
+
+# ---------------------------------------------------------------------------
+# 9) Sitzungsprotokoll nur ueber Start-ToolTranscript. Das Logs-Verzeichnis ist
+#    nicht versioniert; der Helfer legt es an, statt sich auf das
+#    versionsabhaengige Verhalten von Start-Transcript zu verlassen.
+# ---------------------------------------------------------------------------
+foreach ($p in $parsed.Values) {
+    $checked++
+    $commands = $p.Ast.FindAll({
+        param($n)
+        $n -is [System.Management.Automation.Language.CommandAst] -and
+        $n.GetCommandName() -eq "Start-Transcript"
+    }, $true)
+
+    foreach ($cmd in $commands) {
+        $fn = & $enclosingFunction $cmd
+        if ($fn -ne "Start-ToolTranscript") {
+            Add-Failure "TranscriptOnePath" ("{0}:{1} ruft Start-Transcript direkt auf (in '{2}') - Start-ToolTranscript verwenden" -f `
+                $p.File.Name, $cmd.Extent.StartLineNumber, $fn)
         }
     }
 }
